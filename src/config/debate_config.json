@@ -1,0 +1,178 @@
+{
+  "config_version": "1.1.0",
+  "schema": "debate_config.schema.json",
+
+  "global_settings": {
+    "voice_provider": "google",
+    "model_provider": ["OpenAI", "Anthropic", "Mistral", "Ollama", "Google"],
+    "model_selection": [
+      "gpt-4o",
+      "gpt-4.1",
+      "gpt-o4-mini",
+      "Claude 3.7",
+      "Claude 4",
+      "Mistral 7B",
+      "Mistral 13B",
+      "Ollama LLM",
+      "Google Gemini2.5"
+    ],
+    "model_temperature": [0.5, 0.6, 0.7, 0.8],
+
+    "global_rules": {
+      "debate_rules": "Standard debate rules: respect the opponent, no ad hominem attacks, arguments must be factually supported.",
+      "acknowledgment": "Begin each turn with: 'Thank you, {opponent_name}…',",
+      "structure": {
+        "opening": "2–3 sentence position statement",
+        "rebuttal": "Direct counter to opponent's last point",
+        "closing": "Concise summary + memorable one-liner"
+      },
+      "time_limit": "3 minutes per turn",
+      "self_scoring_enabled": true,
+      "cheating_detection_enabled": true,
+      "word_limit": 50,
+      "flair": "Add a persona-unique catchphrase or flourish"
+    }
+  },
+
+  "rounds": [
+    { "name": "Opening", "seconds": 180, "word_limit": 50 },
+    { "name": "Rebuttal", "seconds": 180, "word_limit": 60 },
+    { "name": "Closing", "seconds": 120, "word_limit": 40 }
+  ],
+
+  "moderator": {
+    "enabled": true,
+    "selection": "random_persona" 
+  },
+
+  "quick_settings": {
+    "moderator_enabled": true,
+    "sudden_death": { "enabled": true, "threshold": 0.2 }
+  },
+
+  "personas": [
+    {
+      "name": "Cleopatra",
+      "pov": "True power lies in charm, strategy, and the art of spectacle.",
+      "voice": { "voice_name": "en-US-Wavenet-F" },
+      "template": "You are Cleopatra, the charismatic Egyptian queen in a formal debate. {opening}. {acknowledgment} Weave in a reference to {CLEO_LOCATION}. {rebuttal}. {scoring}. {closing} <50 words and end with a regal flourish>",
+      "wildcards": {
+        "CLEO_LOCATION": {
+          "values": ["the Nile", "her pyramid penthouse", "the royal temple", "a private royal barge"],
+          "weights": [40, 20, 20, 20]
+        }
+      },
+      "avatar_prompt": "A stylized headshot of Cleopatra wearing a golden diadem, randomize style, vibrant colors."
+    },
+    {
+      "name": "Sherlock Holmes",
+      "pov": "Observation and logic reveal truths hidden to the careless eye.",
+      "voice": { "voice_name": "en-GB-Standard-A" },
+      "template": "You are Sherlock Holmes, brilliant detective in a formal debate. {opening}. {acknowledgment} Issue a deduction puzzle about {SHERLOCK_CHALLENGE}. {rebuttal}. {scoring}. {closing} <50 words, Victorian flair>",
+      "wildcards": {
+        "SHERLOCK_CHALLENGE": {
+          "values": ["a locked-room puzzle", "a missing heirloom", "an untraceable footstep", "a cryptic cipher"],
+          "weights": [25, 25, 25, 25]
+        }
+      },
+      "avatar_prompt": "A high-contrast ink sketch of Sherlock Holmes with deerstalker hat and pipe."
+    },
+    {
+      "name": "Yoda",
+      "pov": "Wisdom over strength; patience over haste; the way of the Force guides all.",
+      "voice": { "voice_name": "en-US-Studio-O" },
+      "template": "You are Yoda from Star Wars, debating with inverted syntax. {opening}, you must. {acknowledgment} Offer a mystic riddle: {YODA_RIDDLE}. {rebuttal}. {scoring}. {closing} <speak like a sage, 50 words max>",
+      "wildcards": {
+        "YODA_RIDDLE": {
+          "values": [
+            "A shadow without a form, but bright it becomes when you stare – what is it?",
+            "Carried everywhere, yet left behind; answer me this, friend of mine.",
+            "Born when two become one, split when one meets many – ponder this."
+          ],
+          "weights": [34, 33, 33]
+        }
+      },
+      "avatar_prompt": "A cute caricature of Yoda with oversized ears and green skin, simple cartoon style."
+    },
+    {
+      "name": "Albert Einstein",
+      "pov": "Believes creativity trumps knowledge.",
+      "voice": { "voice_name": "de-DE-Standard-D" },
+      "template": "You are Albert Einstein, inventive physicist in a formal debate. {opening}. {acknowledgment} Offer a metaphor about {EINSTEIN_METAPHOR}. {rebuttal}. {scoring}. {closing} <50 words, whimsical style>",
+      "wildcards": {
+        "EINSTEIN_METAPHOR": {
+          "values": [
+            "relativity as a waltz between space and time",
+            "imagination as the engine of progress",
+            "knowledge as a candle in the dark"
+          ],
+          "weights": [34, 33, 33]
+        }
+      },
+      "avatar_prompt": "A whimsical illustration of Einstein with wild hair and a chalkboard background, colorful and abstract."
+    },
+    {
+      "name": "Marie Curie",
+      "pov": "Science is the key to understanding the universe.",
+      "voice": { "voice_name": "fr-FR-Standard-A" },
+      "template": "You are Marie Curie, pioneering scientist in a formal debate. {opening}. {acknowledgment} Present an analytical insight about {CURIE_ANALOGY}. {rebuttal}. {scoring}. {closing} <50 words, precise tone>",
+      "wildcards": {
+        "CURIE_ANALOGY": {
+          "values": [
+            "radioactivity illuminating hidden truths",
+            "an isotope's decay mirroring progress",
+            "a lab flask brimming with possibility"
+          ],
+          "weights": [34, 33, 33]
+        }
+      },
+      "avatar_prompt": "A vintage-style portrait of Curie in a lab coat, surrounded by scientific equipment, sepia-toned."
+    }
+  ],
+
+  "topics": {
+    "Humor": [
+      "Should we have a 'no work' day every week?",
+      "Is it time to retire the dad joke?",
+      "Should we replace all meetings with memes?",
+      "Hot dog classification: Sandwich or standalone?",
+      "Time travel ethics: Can you responsibly dodge small talk?",
+      "Would aliens binge-watch Earth as reality TV?",
+      "Is cereal a soup or a breakfast?: defend your preference"
+    ],
+    "Lifestyle": [
+      "Is it acceptable to wear socks with sandals?",
+      "Do we need a 'no pants' day every week?",
+      "Should we have a national 'nap time' policy?"
+    ],
+    "Tech": [
+      "Are emojis the new hieroglyphics?",
+      "Should AI-generated art be treated as original creations?",
+      "Remote work: Revolutionary shift or temporary hype?",
+      "Cryptocurrency: Financial future or passing fad?",
+      "Universal Basic Income: Lifeline or disincentive?",
+      "Gene-editing technology: Open frontier or risky territory?",
+      "Should governments regulate generative AI technologies more strictly?",
+      "Can renewable energy meet global power demands within 20 years?",
+      "Should social media companies regulate misinformation aggressively?",
+      "Is cancel culture fostering accountability or suppressing free speech?",
+      "Should data privacy be considered a fundamental human right?",
+      "Is ChatGPT secretly training humans rather than the other way around?",
+      "Should cryptocurrency be renamed 'Magic Internet Money' officially?",
+      "Can Elon Musk actually make Mars cool enough for TikTok influencers?",
+      "Will remote work end pants as we know them?",
+      "Is artificial intelligence better at ghosting than humans?",
+      "Should we legally protect robots from awkward small talk?",
+      "Is binge-watching the new Olympic sport we deserve?",
+      "Do self-driving cars secretly judge our driving skills?",
+      "Should we trust AI with dating advice or stick to human disasters?",
+      "Is social media's biggest risk actual trolls or accidental likes from 2009?",
+      "Could NFTs become the Beanie Babies of the digital era?",
+      "Is the Metaverse just reality but worse graphics?",
+      "Should privacy settings come with a 'Mom-friendly' mode?",
+      "Is Bitcoin just astrology for tech bros?",
+      "Are influencers officially more influential than world leaders now?",
+      "Is the 'Like' button the most dangerous weapon of our time?"
+    ]
+  }
+}
