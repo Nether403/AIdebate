@@ -1,0 +1,77 @@
+services:
+  # Main Next.js Application
+  - type: web
+    name: ai-debate-arena
+    env: node
+    region: frankfurt # EU region for lower latency
+    plan: starter # Upgrade to standard for production
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    
+    # Environment Variables
+    envVars:
+      - key: NODE_ENV
+        value: production
+      
+      # Database (Neon PostgreSQL)
+      - key: DATABASE_URL
+        sync: false # Set manually in Render dashboard
+      
+      # Cache (Upstash Redis)
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      
+      # LLM Providers
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      
+      # Search API
+      - key: TAVILY_API_KEY
+        sync: false
+      
+      # Authentication (Stack Auth)
+      - key: NEXT_PUBLIC_STACK_PROJECT_ID
+        sync: false
+      - key: NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY
+        sync: false
+      - key: STACK_SECRET_SERVER_KEY
+        sync: false
+      
+      # NextAuth
+      - key: NEXTAUTH_SECRET
+        sync: false
+      - key: NEXTAUTH_URL
+        value: https://ai-debate-arena.onrender.com # Update with your domain
+      
+      # Rate Limiting
+      - key: RATE_LIMIT_ANONYMOUS
+        value: 100
+      - key: RATE_LIMIT_AUTHENTICATED
+        value: 500
+      
+      # Spending Caps
+      - key: DAILY_SPENDING_CAP_PROD
+        value: 500
+    
+    # Auto-deploy settings
+    autoDeploy: true
+    branch: main
+    
+    # Scaling settings
+    numInstances: 1
+    
+    # Health check settings
+    healthCheckPath: /api/health
+    healthCheckInterval: 30
+    healthCheckTimeout: 10

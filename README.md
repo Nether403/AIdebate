@@ -1,136 +1,171 @@
-# AI Debate Arena
+# AI Debate Arena - LLM Benchmark Platform
 
-A cutting-edge platform for watching AI models engage in intellectually stimulating debates on diverse topics. Currently a beautifully designed interactive UI showcasing AI personas debating with dynamic scoring and real-time transcripts.
+A serious, scientifically rigorous benchmark platform that evaluates Large Language Models through adversarial debates, bridging the gap between static benchmarks and real user experience.
 
-## Current Features
+## 🎯 Project Vision
 
-- **Interactive Debate Setup**: Select from multiple AI personas (Cleopatra, Sherlock Holmes, Yoda, Albert Einstein, Marie Curie) to set up debates
-- **Dynamic Topic Selection**: Browse curated debate topics across categories (Humor, Lifestyle, Tech)
-- **Real-Time Timer**: Track debate progress with visual time indicators and round-based timing
-- **Live Scoring**: View debate scores for each participant with animated score gauges
-- **Debate Transcript**: Watch message-by-message transcript of debates with export to markdown
-- **Dark Mode**: Full dark mode support with seamless theme switching
-- **Responsive Design**: Works across desktop and tablet devices
-- **Customizable Settings**: Adjust temperature, enable/disable moderator, and toggle sudden death mode
+Transform LLM evaluation from static tests into dynamic, persona-driven debates that measure both persuasive appeal and logical rigor. This platform identifies models that are genuinely intelligent versus those that are merely charismatic.
 
-## Tech Stack
+## 🔑 Key Innovation
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS
-- **Animations**: Framer Motion
-- **Icons**: Lucide React
-- **Validation**: AJV (JSON Schema Validation)
-- **Build Tool**: Vite
-- **Testing**: Jest, React Testing Library
-- **Linting**: ESLint
+**Dual Scoring System:**
+- **Crowd Score** (Elo) - Measures persuasiveness and user appeal
+- **AI Quality Score** (Glicko-2) - Measures logical coherence and factuality
+- **Charismatic Liar Index** - Identifies models with high crowd appeal but low logical quality
 
-## Project Structure
+## 🏗️ Architecture
 
-```
-src/
-├── components/           # React components
-│   ├── DebateOrchestrator.tsx    # Main orchestration component
-│   ├── DebateTimer.tsx           # Timer display and controls
-│   ├── DebateTranscript.tsx      # Message transcript display
-│   ├── PersonaCard.tsx           # Persona selection card
-│   ├── ScoreGauge.tsx            # Score visualization
-│   └── ui/                       # Reusable UI components
-│       ├── Button.tsx
-│       ├── Select.tsx
-│       ├── Slider.tsx
-│       └── Toggle.tsx
-├── hooks/               # Custom React hooks
-│   ├── useDebateConfig.ts       # Load and validate configuration
-│   ├── useDebateTimer.ts        # Timer state management
-│   └── useLocalStorage.ts       # Persistent local storage
-├── types/              # TypeScript type definitions
-│   └── debate.ts       # Core debate-related types
-├── utils/              # Utility functions
-│   └── configValidator.ts       # JSON schema validation
-├── config/             # Configuration files
-│   └── debate_config.json       # Personas, topics, and settings
-├── schemas/            # JSON schemas
-│   └── debate_config.schema.json # Validation schema
-└── __tests__/          # Test files
-```
+- **Frontend:** Next.js 14+ with App Router, TypeScript, Tailwind CSS
+- **Backend:** Next.js API routes with LangGraph multi-agent orchestration
+- **Database:** Neon PostgreSQL with Drizzle ORM
+- **Cache:** Upstash Redis
+- **Auth:** Neon Auth (Stack Auth integration)
+- **LLMs:** OpenAI, Google Gemini, xAI Grok, OpenRouter
+- **Search:** Tavily API for fact-checking
 
-## Configuration
+## 🤖 Multi-Agent System
 
-The app is configured via `src/config/debate_config.json` which includes:
+Built with LangGraph for stateful debate orchestration:
 
-- **Personas**: Define AI persona characteristics, points of view, voice settings, and debate templates
-- **Topics**: Organize debate topics by category with multiple questions per category
-- **Global Settings**: Configure voice provider, model provider, temperature ranges, and debate rules
-- **Rounds**: Define debate structure (opening, rebuttal, closing) with time and word limits
+1. **Pro/Con Debater Agents** - Generate arguments using Reflect-Critique-Refine (RCR) prompting
+2. **Fact-Checker Agent** - Validates claims against search APIs (hallucination firewall)
+3. **Judge Agent** - Evaluates debates using structured rubrics
+4. **Moderator Agent** - Enforces rules and manages debate flow
+5. **Topic Generator Agent** - Creates balanced debate motions
 
-## Getting Started
+## 📊 Features
+
+### Core Features
+- ✅ Real-time debates between LLM models
+- ✅ Persona-driven arguments (historical figures, archetypes)
+- ✅ Automatic fact-checking with verification badges
+- ✅ Dual scoring (crowd votes + AI judge)
+- ✅ Transparent leaderboard with multiple metrics
+- ✅ Anonymous voting to prevent brand bias
+
+### Gamification
+- 🎮 Prediction market with DebatePoints
+- 🏆 Superforecaster badges for accurate predictors
+- 📊 Live probability graphs
+- 🎯 "Debate of the Day" featured matchups
+- 📈 Personal statistics dashboard
+
+### Research Features
+- 📝 Complete debate transcript storage
+- 🔍 Per-topic performance analysis
+- 📉 Model version tracking over time
+- 🔬 Controversy index (score divergence detection)
+- 📊 Exportable anonymized datasets
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Neon PostgreSQL account
+- API keys for LLM providers (OpenAI, Google, xAI, OpenRouter)
+- Tavily API key for fact-checking
+
+### Environment Setup
+
+Configure your API keys in `.env` (see `.env` for required variables).
 
 ### Installation
 
 ```bash
+# Install dependencies
 npm install
-```
 
-### Development
+# Initialize Stack Auth
+npx @stackframe/init-stack . --no-browser
 
-```bash
+# Run database migrations
+npm run db:push
+
+# Seed initial data
+npm run db:seed
+
+# Start development server
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
-
-### Build
-
-```bash
-npm run build
-```
-
-### Testing
-
-```bash
-npm test              # Run tests once
-npm run test:watch    # Run tests in watch mode
-npm run test:coverage # Generate coverage report
-```
-
-## Current Limitations
-
-This is currently a **UI prototype** without live AI integration. The following are planned for future versions:
-
-- No actual LLM API integration (debates don't generate real AI responses)
-- Debates are simulated UI-only experience
-- No data persistence (all settings stored in browser localStorage)
-- No user authentication or accounts
-- No debate history or analytics
-- Transcript export is available but debates aren't saved
-- Settings don't affect debate generation (no actual model selection)
-
-## Next Steps
-
-See [ROADMAP.md](./ROADMAP.md) for a detailed 4-phase plan to transform this into a fully functional LLM benchmarking platform with real AI debates, persistent storage, analytics, and research capabilities.
-
-## Environment Variables
-
-The app requires Supabase configuration (for future versions):
+## 📁 Project Structure
 
 ```
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes
+│   ├── (routes)/          # Page routes
+│   └── layout.tsx         # Root layout
+├── components/            # React components
+│   ├── debate/           # Debate-specific components
+│   └── leaderboard/      # Leaderboard components
+├── lib/                   # Core business logic
+│   ├── agents/           # LangGraph agents
+│   ├── db/               # Database schema & client
+│   ├── llm/              # LLM provider clients
+│   └── rating/           # Glicko-2 rating engine
+├── types/                 # TypeScript type definitions
+├── .kiro/                 # Spec and steering docs
+│   ├── specs/            # Requirements, design, tasks
+│   └── steering/         # Development guidelines
+└── archive/               # Old Bolt.new prototype
 ```
 
-## Scripts
+## 📚 Documentation
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run lint` - Run ESLint
-- `npm run preview` - Preview production build
-- `npm run test` - Run tests
-- `npm run test:watch` - Run tests in watch mode
-- `npm run test:coverage` - Generate test coverage report
+- **[Requirements](./.kiro/specs/debate-benchmark-platform/requirements.md)** - EARS-compliant requirements
+- **[Design](./.kiro/specs/debate-benchmark-platform/design.md)** - Architecture and interfaces
+- **[Tasks](./.kiro/specs/debate-benchmark-platform/tasks.md)** - Implementation plan
+- **[Project Guide](./.kiro/steering/project-guide.md)** - Development guidelines
+- **[MCP Activation Guide](./.kiro/steering/mcp-activation-guide.md)** - Tool usage guide
 
-## Contributing
+## 🔬 Research Foundation
 
-This project is in active development. Check the roadmap for upcoming features and opportunities to contribute.
+This project is based on extensive research into modern LLM evaluation:
 
-## License
+- **AI Debate Arena Research** - Benchmark design principles
+- **The Dialectic Engine** - Multi-agent architecture
 
-All rights reserved.
+## 🎯 Roadmap
+
+### Phase 1: MVP (Current)
+- [ ] Project setup and database schema
+- [ ] LLM provider integrations
+- [ ] Basic debate engine with LangGraph
+- [ ] Simple judge and fact-checker
+- [ ] Anonymous voting
+- [ ] Basic leaderboard
+
+### Phase 2: Enhanced Features
+- [ ] Prediction market with DebatePoints
+- [ ] User authentication (Neon Auth)
+- [ ] Advanced judge with position bias mitigation
+- [ ] Topic generator agent
+- [ ] User statistics dashboard
+
+### Phase 3: Research Platform
+- [ ] Data export API
+- [ ] Advanced analytics
+- [ ] Model version tracking
+- [ ] Championship rounds
+- [ ] Public dataset releases
+
+## 🤝 Contributing
+
+This is currently a solo development project. Contributions will be welcome once the MVP is complete.
+
+## 📄 License
+
+[To be determined]
+
+## 🙏 Acknowledgments
+
+- LMSYS Chatbot Arena for inspiration on crowd-based evaluation
+- LangChain/LangGraph for multi-agent orchestration framework
+- Neon for serverless PostgreSQL and authentication
+- The research community for benchmark methodology insights
+
+---
+
+**Status:** 🚧 In Active Development  
+**Current Phase:** Phase 1 - MVP Implementation
