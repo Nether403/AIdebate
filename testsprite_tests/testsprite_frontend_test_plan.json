@@ -1,0 +1,429 @@
+[
+  {
+    "id": "TC001",
+    "title": "Multi-Agent Debate Initialization and Execution",
+    "description": "Verify that the multi-agent debate system initializes properly with selected LLM models, personas, and topics and that debates proceed with real-time streaming of arguments.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to debate configuration form."
+      },
+      {
+        "type": "action",
+        "description": "Select multiple LLM models, assign personas, and choose debate topics."
+      },
+      {
+        "type": "action",
+        "description": "Start the debate and observe multi-agent orchestration."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm debate starts without errors and streaming updates appear in real time."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify each agent's contributions correspond to their expected roles (Pro/Con Debater, Fact-Checker, Judge, Moderator, Topic Generator)."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Dual Scoring System Accuracy and Consistency",
+    "description": "Test that the dual scoring system correctly computes and updates Crowd Elo and AI Quality scores using Glicko-2 algorithm and detects controversy and Charismatic Liar Index correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate a complete debate with crowd votes and AI judge evaluations."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that scores are calculated using Glicko-2 and updated after each debate."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify presence and correctness of controversy detection metrics."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate Charismatic Liar Index is computed and displayed properly."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Prediction Market Betting and Payout Workflow",
+    "description": "Ensure the prediction market allows users to bet virtual DebatePoints with dynamic odds and that payouts and Superforecaster badges are correctly assigned post-debate.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Authenticate user and verify DebatePoints balance."
+      },
+      {
+        "type": "action",
+        "description": "Place bets on debate outcomes with varying amounts."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm odds update dynamically based on bets placed."
+      },
+      {
+        "type": "action",
+        "description": "Complete the debate and trigger payout processing."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify correct payout amounts credited and Superforecaster badges awarded appropriately."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Fact-Checking Agent Integration",
+    "description": "Verify the fact-checking agent accurately identifies factual claims in debate arguments, queries external APIs, and displays correct fact-check badges in real-time.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Start a debate including factual statements subject to verification."
+      },
+      {
+        "type": "assertion",
+        "description": "Observe fact-check badges appear beside claims dynamically as fact-checker validates them."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm fact-checking results match expected external data from search API."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Authentication System with OAuth and Anonymous Voting",
+    "description": "Test user authentication flow via OAuth providers and ensure anonymous voting is allowed with proper session management.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt login using all supported OAuth providers."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify successful authentication, session creation, and user redirection."
+      },
+      {
+        "type": "action",
+        "description": "Access a debate as an anonymous user."
+      },
+      {
+        "type": "action",
+        "description": "Cast votes anonymously."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm votes are recorded and anonymous voting session persists correctly."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Rate Limiting and Anomalous Voting Detection",
+    "description": "Validate that rate limiting blocks excessive requests and anomalous voting behavior triggers detection and prevention mechanisms.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send rapid successive API requests exceeding rate limits."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure rate limiting responses (e.g., HTTP 429) are returned."
+      },
+      {
+        "type": "action",
+        "description": "Simulate abnormal voting patterns (e.g., multiple votes from same IP/session)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify detection triggers and voting is blocked or flagged accordingly."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Debate Viewer UI with Streaming and Voting Interfaces",
+    "description": "Check debate viewer displays real-time streaming arguments, fact-check badges, RCR phase labels, and allows voting accurately.",
+    "category": "ui",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Load an active debate in the viewer."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm streaming text appears smoothly without lag or truncation."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate fact-check badges align correctly with claims."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify phase indicators (Reasoning, Challenge, Rebuttal) display appropriately."
+      },
+      {
+        "type": "action",
+        "description": "Cast votes through the voting interface."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify votes are submitted and reflected in UI immediately."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Leaderboard Sorting, Filtering and Details",
+    "description": "Ensure the leaderboard supports sorting by multiple criteria, filtering by model/topic, and displays detailed statistics correctly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to leaderboard page."
+      },
+      {
+        "type": "action",
+        "description": "Sort leaderboard by Crowd Elo, AI Quality, controversy, and Charismatic Liar Index."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify sorting order changes accordingly."
+      },
+      {
+        "type": "action",
+        "description": "Apply filters for specific models and debate topics."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm filtered results match selected criteria."
+      },
+      {
+        "type": "action",
+        "description": "Open model detail page and examine per-topic performance charts and recent debates."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate statistics are accurate and visually rendered correctly."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "User Dashboard Personal Statistics and Voting History",
+    "description": "Verify authenticated users can access personal statistics, review their voting history, prediction accuracy, and view DebatePoints balance and badges.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as a registered user."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to user dashboard."
+      },
+      {
+        "type": "assertion",
+        "description": "Check accurate display of aggregate platform metrics related to the user."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify complete voting history with timestamps and outcomes."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm DebatePoints balance is shown and updates after betting activity."
+      },
+      {
+        "type": "assertion",
+        "description": "Check presence of Superforecaster badges if criteria met."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Topic Submission, Approval, and Auto-Replenishment",
+    "description": "Test topic management flow including topic submission by users, admin approval process, and automatic replenishment of topics when inventory is low.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Submit new debate topic via topic submission form."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm submission success and topic appears in pending admin review list."
+      },
+      {
+        "type": "action",
+        "description": "Login as admin and approve submitted topics."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify approved topics are added to active topic pool and visible to users."
+      },
+      {
+        "type": "action",
+        "description": "Simulate topic inventory depletion and check if auto-replenishment triggers."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate new topics are generated and added automatically."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "API Endpoint Validation and Security",
+    "description": "Ensure all API endpoints for debate management, voting, leaderboards, predictions, topics, and health checks respond correctly with appropriate data, validation, and security measures.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send valid and invalid requests to all public API endpoints."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify API responses conform to schema, include expected data, and handle errors gracefully."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm input validation is enforced and malicious payloads are rejected."
+      },
+      {
+        "type": "assertion",
+        "description": "Check authentication and authorization is required where appropriate."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Performance Under Load and Caching Effectiveness",
+    "description": "Test system responsiveness and UI load times under expected concurrent user load and validate caching reduces redundant database queries.",
+    "category": "performance",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate concurrent users accessing debates, voting, and leaderboard views."
+      },
+      {
+        "type": "assertion",
+        "description": "Measure page load times and ensure they meet performance targets."
+      },
+      {
+        "type": "action",
+        "description": "Monitor database query counts with and without Redis caching enabled."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm caching effectively reduces query load and response times improve."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no stale or inconsistent data is presented due to caching."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Theme Toggle and UI Accessibility Compliance",
+    "description": "Verify dark/light theme toggle works correctly with system preference detection and persistence and UI components meet WCAG 2.1 AA accessibility guidelines.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Toggle theme mode from light to dark and vice versa."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm UI theme changes instantly and persists across sessions."
+      },
+      {
+        "type": "action",
+        "description": "Test page with system preference set to dark mode for initial load."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate UI respects system preference."
+      },
+      {
+        "type": "assertion",
+        "description": "Perform accessibility audit on key pages ensuring color contrast, keyboard navigation, ARIA roles, and screen reader compatibility meet standards."
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Error Handling and Recovery in Debate Lifecycle",
+    "description": "Ensure global error boundaries catch runtime errors gracefully and provide recovery options in the debate lifecycle such as state recovery and transcript availability.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Trigger controlled runtime errors during debate orchestration and API calls."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm error pages or modals display friendly messages and recovery options."
+      },
+      {
+        "type": "action",
+        "description": "Simulate debate engine state recovery after system interruption."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify debate resumes properly and transcripts are intact and accessible."
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Session Fingerprinting and Spending Cap Enforcement",
+    "description": "Test session fingerprinting correctly distinguishes users and spending caps prevent excessive cost accumulation during debate participation.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Initiate multiple sessions from different devices/browsers to generate fingerprints."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify fingerprints are unique and consistent per session."
+      },
+      {
+        "type": "action",
+        "description": "Accumulate token usage costs near defined spending limits."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm spending cap triggers cost guard middleware and prevents further usage."
+      }
+    ]
+  }
+]

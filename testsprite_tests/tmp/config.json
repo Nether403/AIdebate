@@ -1,0 +1,40 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "executionArgs": {
+    "projectName": "AIdebate",
+    "projectPath": "F:\\AIdebate",
+    "testIds": [
+      "TC001",
+      "TC002",
+      "TC003",
+      "TC004",
+      "TC005",
+      "TC006",
+      "TC007",
+      "TC008",
+      "TC009",
+      "TC010",
+      "TC011",
+      "TC012",
+      "TC013",
+      "TC014",
+      "TC015",
+      "TC016",
+      "TC017",
+      "TC018",
+      "TC019",
+      "TC020",
+      "TC021",
+      "TC022",
+      "TC023"
+    ],
+    "additionalInstruction": "Test the AI Debate Arena platform comprehensively, including all core features: debate configuration, real-time streaming, voting, leaderboard, prediction market, security, and UI components. The application is running on localhost:3000.",
+    "envs": {
+      "API_KEY": "sk-user-BLHO6MdQZI18EOI9yxZL7YxYclmjWs50UT3CAEYt_c3KuWURLOSB0HSlC2_2ngwCUBL5-H0GjzjUQfkbtZgQMNMrnY72jRTbUht5WyDWom31uhKCH2WMbzt-ELRw0d6qjGg"
+    }
+  },
+  "proxy": "http://1281f26b-9965-4617-9b76-ab31370c63c3:zFSbUL2M8i8UBiGifIdRFOstEInQ3bHa@tun.testsprite.com:8080"
+}

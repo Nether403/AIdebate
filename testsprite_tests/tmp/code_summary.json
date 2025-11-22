@@ -1,0 +1,275 @@
+{
+  "tech_stack": [
+    "TypeScript",
+    "Next.js 16.0.3",
+    "React 19.2.0",
+    "Tailwind CSS 4.1.17",
+    "PostgreSQL (Neon)",
+    "Drizzle ORM 0.44.7",
+    "Redis (Upstash)",
+    "LangChain/LangGraph",
+    "Framer Motion",
+    "Recharts",
+    "Stack Auth",
+    "Zod",
+    "OpenAI API",
+    "Google Gemini API",
+    "xAI Grok API",
+    "Anthropic Claude API",
+    "OpenRouter API",
+    "Tavily Search API"
+  ],
+  "features": [
+    {
+      "name": "Multi-Agent Debate System",
+      "description": "LangGraph-based orchestration system with Pro/Con Debater, Fact-Checker, Judge, Moderator, and Topic Generator agents for conducting adversarial debates between LLM models",
+      "files": [
+        "lib/agents/graph.ts",
+        "lib/agents/debater.ts",
+        "lib/agents/fact-checker.ts",
+        "lib/agents/judge.ts",
+        "lib/agents/moderator.ts",
+        "lib/agents/topic-generator.ts",
+        "lib/agents/round-transition.ts"
+      ]
+    },
+    {
+      "name": "LLM Provider Integration",
+      "description": "Unified client for multiple LLM providers with streaming support, token counting, cost tracking, and retry logic",
+      "files": [
+        "lib/llm/client.ts",
+        "lib/llm/base-provider.ts",
+        "lib/llm/streaming.ts",
+        "lib/llm/providers/openai.ts",
+        "lib/llm/providers/google.ts",
+        "lib/llm/providers/anthropic.ts",
+        "lib/llm/providers/xai.ts",
+        "lib/llm/utils/sanitize.ts"
+      ]
+    },
+    {
+      "name": "Debate Engine",
+      "description": "Core debate lifecycle management with state persistence, checkpoints, recovery, and transcript management",
+      "files": [
+        "lib/debate/engine.ts",
+        "lib/debate/config.ts",
+        "lib/debate/transcript.ts",
+        "lib/debate/index.ts"
+      ]
+    },
+    {
+      "name": "Dual Rating System",
+      "description": "Glicko-2 algorithm implementation for dual scoring (Crowd Elo + AI Quality), Charismatic Liar Index, and controversy detection",
+      "files": [
+        "lib/rating/engine.ts",
+        "lib/rating/glicko2.ts"
+      ]
+    },
+    {
+      "name": "Prediction Market",
+      "description": "Virtual currency betting system with DebatePoints, dynamic odds calculation, payout system, and Superforecaster badges",
+      "files": [
+        "lib/prediction/market.ts",
+        "components/prediction/BettingInterface.tsx",
+        "components/prediction/BettingHistory.tsx",
+        "components/prediction/UserStatsCard.tsx"
+      ]
+    },
+    {
+      "name": "Database Schema & ORM",
+      "description": "Neon PostgreSQL database with Drizzle ORM, including schemas for debates, models, personas, topics, votes, bets, and ratings",
+      "files": [
+        "lib/db/schema.ts",
+        "lib/db/client.ts",
+        "lib/db/seed.ts",
+        "lib/db/indexes.sql",
+        "drizzle.config.ts"
+      ]
+    },
+    {
+      "name": "Authentication System",
+      "description": "Neon Auth (Stack Auth) integration with session management, OAuth support, and anonymous voting",
+      "files": [
+        "lib/auth/session.ts",
+        "app/handler/[...stack]/page.tsx"
+      ]
+    },
+    {
+      "name": "Security & Abuse Prevention",
+      "description": "IP-based rate limiting, session fingerprinting, anomalous voting detection, cost monitoring, and spending caps",
+      "files": [
+        "lib/security/abuse-detection.ts",
+        "lib/security/fingerprint.ts",
+        "lib/security/cost-monitoring.ts",
+        "lib/middleware/rate-limit.ts",
+        "lib/middleware/cost-guard.ts",
+        "lib/middleware/validation.ts"
+      ]
+    },
+    {
+      "name": "Caching System",
+      "description": "Upstash Redis integration for caching frequently accessed data and reducing database queries",
+      "files": [
+        "lib/cache/client.ts",
+        "lib/performance/cache-utils.ts"
+      ]
+    },
+    {
+      "name": "Performance Optimization",
+      "description": "Code splitting, lazy loading, monitoring utilities, and performance tracking",
+      "files": [
+        "lib/performance/lazy-components.tsx",
+        "lib/performance/monitoring.ts",
+        "lib/performance/cache-utils.ts"
+      ]
+    },
+    {
+      "name": "Debate Configuration Form",
+      "description": "UI for creating new debates with model selection, topic selection, persona assignment, and parameter configuration",
+      "files": [
+        "components/debate/DebateConfigForm.tsx",
+        "app/debate/new/page.tsx"
+      ]
+    },
+    {
+      "name": "Debate Viewer & Orchestrator",
+      "description": "Real-time debate viewing with streaming responses, RCR phase display, fact-check badges, and voting interface",
+      "files": [
+        "components/debate/DebateOrchestrator.tsx",
+        "components/debate/DebateTranscript.tsx",
+        "components/debate/VotingInterface.tsx",
+        "app/debate/[debateId]/page.tsx"
+      ]
+    },
+    {
+      "name": "Leaderboard System",
+      "description": "Dual score display (Crowd + AI), multiple sorting options, model detail pages, per-topic performance, and controversy highlighting",
+      "files": [
+        "components/leaderboard/LeaderboardTable.tsx",
+        "components/leaderboard/LeaderboardFilters.tsx",
+        "components/leaderboard/LeaderboardStats.tsx",
+        "components/leaderboard/ModelStatsCard.tsx",
+        "components/leaderboard/TopicPerformanceChart.tsx",
+        "components/leaderboard/RecentDebatesTable.tsx",
+        "components/leaderboard/ProgressChart.tsx",
+        "app/leaderboard/page.tsx",
+        "app/leaderboard/[modelId]/page.tsx"
+      ]
+    },
+    {
+      "name": "Statistics Dashboard",
+      "description": "Aggregate platform metrics, trends, and visualizations for overall platform performance",
+      "files": [
+        "components/statistics/StatisticsDashboard.tsx",
+        "app/statistics/page.tsx"
+      ]
+    },
+    {
+      "name": "Topic Management",
+      "description": "Topic submission, admin approval workflow, auto-replenishment system, and topic categorization",
+      "files": [
+        "components/topics/TopicSubmissionForm.tsx",
+        "app/topics/submit/page.tsx",
+        "app/admin/topics/page.tsx"
+      ]
+    },
+    {
+      "name": "User Dashboard",
+      "description": "Personal statistics, voting history, prediction accuracy, DebatePoints balance, and Superforecaster badges",
+      "files": [
+        "app/dashboard/page.tsx"
+      ]
+    },
+    {
+      "name": "Social Sharing",
+      "description": "Social media share buttons, Open Graph metadata, and debate sharing functionality",
+      "files": [
+        "components/debate/ShareButtons.tsx"
+      ]
+    },
+    {
+      "name": "Probability Visualization",
+      "description": "Live probability graphs for prediction market odds and betting trends",
+      "files": [
+        "components/debate/ProbabilityGraph.tsx"
+      ]
+    },
+    {
+      "name": "Theme System",
+      "description": "Dark/light mode toggle with system preference detection and persistence",
+      "files": [
+        "components/layout/ThemeProvider.tsx",
+        "components/layout/ThemeToggle.tsx"
+      ]
+    },
+    {
+      "name": "UI Component Library",
+      "description": "Reusable WCAG 2.1 AA compliant components including Button, Card, Badge, Alert, Tabs, Toast, Skeleton, LoadingSpinner, Navigation, Breadcrumbs, Container, PageTransition",
+      "files": [
+        "components/layout/Button.tsx",
+        "components/layout/Card.tsx",
+        "components/layout/Badge.tsx",
+        "components/layout/Alert.tsx",
+        "components/layout/Tabs.tsx",
+        "components/layout/Toast.tsx",
+        "components/layout/Skeleton.tsx",
+        "components/layout/LoadingSpinner.tsx",
+        "components/layout/Navigation.tsx",
+        "components/layout/Breadcrumbs.tsx",
+        "components/layout/Container.tsx",
+        "components/layout/PageTransition.tsx"
+      ]
+    },
+    {
+      "name": "API Endpoints",
+      "description": "RESTful API routes for debate management, voting, leaderboard, statistics, predictions, topics, and health checks",
+      "files": [
+        "app/api/debate/run/route.ts",
+        "app/api/debate/judge/route.ts",
+        "app/api/debate/vote/route.ts",
+        "app/api/debates/route.ts",
+        "app/api/leaderboard/route.ts",
+        "app/api/models/route.ts",
+        "app/api/personas/route.ts",
+        "app/api/topics/route.ts",
+        "app/api/statistics/route.ts",
+        "app/api/prediction/bet/route.ts",
+        "app/api/prediction/odds/route.ts",
+        "app/api/export/debates/route.ts",
+        "app/api/export/dataset/route.ts",
+        "app/api/health/route.ts",
+        "app/api/admin/topics/route.ts"
+      ]
+    },
+    {
+      "name": "Home Page",
+      "description": "Landing page with project overview, animations, and navigation to key features",
+      "files": [
+        "app/page.tsx"
+      ]
+    },
+    {
+      "name": "Component Showcase",
+      "description": "Development page showcasing all UI components with examples and documentation",
+      "files": [
+        "app/components-showcase/page.tsx"
+      ]
+    },
+    {
+      "name": "Error Handling",
+      "description": "Global error boundaries and error pages with recovery options",
+      "files": [
+        "app/error.tsx",
+        "app/leaderboard/error.tsx"
+      ]
+    },
+    {
+      "name": "Loading States",
+      "description": "Loading indicators and skeleton screens for async operations",
+      "files": [
+        "app/loading.tsx",
+        "app/leaderboard/loading.tsx"
+      ]
+    }
+  ]
+}
