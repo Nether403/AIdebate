@@ -15,13 +15,14 @@ import { getTopicGenerator } from '@/lib/agents/topic-generator';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const topic = await db
       .select()
       .from(topics)
-      .where(eq(topics.id, params.id))
+      .where(eq(topics.id, id))
       .limit(1);
 
     if (topic.length === 0) {
@@ -44,15 +45,16 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { action, reason } = body;
 
     if (action === 'retire') {
       const generator = getTopicGenerator();
-      await generator.retireTopic(params.id, reason || 'Admin action');
+      await generator.retireTopic(id, reason || 'Admin action');
 
       return NextResponse.json({
         success: true,
@@ -64,7 +66,7 @@ export async function PATCH(
       await db
         .update(topics)
         .set({ isActive: true })
-        .where(eq(topics.id, params.id));
+        .where(eq(topics.id, id));
 
       return NextResponse.json({
         success: true,
@@ -82,7 +84,7 @@ export async function PATCH(
       await db
         .update(topics)
         .set(updateData)
-        .where(eq(topics.id, params.id));
+        .where(eq(topics.id, id));
 
       return NextResponse.json({
         success: true,
@@ -109,10 +111,11 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await db.delete(topics).where(eq(topics.id, params.id));
+    const { id } = await params;
+    await db.delete(topics).where(eq(topics.id, id));
 
     return NextResponse.json({
       success: true,
