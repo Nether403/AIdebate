@@ -49,33 +49,29 @@ export async function* streamWithSSE(
     let fullContent = '';
     let hasTimedOut = false;
 
-    const processStream = async function* () {
-      for await (const chunk of streamGenerator) {
-        if (hasTimedOut) break;
+    // Set up timeout handler
+    const timeoutHandler = timeoutPromise.catch((error) => {
+      hasTimedOut = true;
+      throw error;
+    });
 
-        if (chunk.isComplete) {
-          yield {
-            type: 'complete' as const,
-            tokensUsed: chunk.tokensUsed,
-          };
-        } else {
-          fullContent += chunk.content;
-          yield {
-            type: 'content' as const,
-            content: chunk.content,
-          };
-        }
+    // Process stream
+    for await (const chunk of streamGenerator) {
+      if (hasTimedOut) break;
+
+      if (chunk.isComplete) {
+        yield {
+          type: 'complete' as const,
+          tokensUsed: chunk.tokensUsed,
+        };
+      } else {
+        fullContent += chunk.content;
+        yield {
+          type: 'content' as const,
+          content: chunk.content,
+        };
       }
-    };
-
-    // Process stream with timeout
-    await Promise.race([
-      processStream(),
-      timeoutPromise.catch((error) => {
-        hasTimedOut = true;
-        throw error;
-      }),
-    ]);
+    }
 
   } catch (error) {
     yield {
