@@ -53,17 +53,17 @@
     "recharts": "^3.4.1",
     "typescript": "^5.9.3",
     "uuid": "^13.0.0",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "@tailwindcss/postcss": "^4.1.17",
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.17"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.17",
     "@types/uuid": "^10.0.0",
-    "autoprefixer": "^10.4.22",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.3",
-    "postcss": "^8.5.6",
     "prettier": "^3.6.2",
-    "tailwindcss": "^4.1.17",
     "tsx": "^4.20.6"
   }
 }
