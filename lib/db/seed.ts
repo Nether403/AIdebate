@@ -26,8 +26,8 @@ async function seed() {
       { name: 'Claude 4.5 Sonnet (Alias)', provider: 'anthropic', modelId: 'claude-4.5-sonnet', isActive: true },
       
       // Google models
-      { name: 'Gemini 3.0 Pro', provider: 'google', modelId: 'gemini-3.0-pro', isActive: true },
-      { name: 'Gemini 3 Pro (Alias)', provider: 'google', modelId: 'gemini-3-pro', isActive: true },
+      { name: 'Gemini 3 Pro Preview', provider: 'google', modelId: 'gemini-3-pro-preview', isActive: true },
+      { name: 'Gemini 2.5 Pro', provider: 'google', modelId: 'gemini-2.5-pro', isActive: true },
       { name: 'Gemini 2.5 Flash', provider: 'google', modelId: 'gemini-2.5-flash', isActive: true },
       
       // xAI models

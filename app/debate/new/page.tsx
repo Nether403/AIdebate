@@ -32,7 +32,11 @@ export default function NewDebatePage() {
       const data = await response.json()
       
       // Redirect to the debate page
-      router.push(`/debate/${data.debateId}`)
+      const debateId = data.debateId || data.debate?.id
+      if (!debateId) {
+        throw new Error('No debate ID returned from server')
+      }
+      router.push(`/debate/${debateId}`)
     } catch (err) {
       console.error('Failed to start debate:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')

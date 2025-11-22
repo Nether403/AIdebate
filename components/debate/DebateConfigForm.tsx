@@ -12,10 +12,12 @@ interface DebateConfigFormProps {
 export interface DebateConfig {
   proModelId: string
   conModelId: string
-  topicId: string | null
-  proPersonaId: string | null
-  conPersonaId: string | null
+  topicId?: string
+  topicSelection: 'random' | 'manual'
+  proPersonaId?: string | null
+  conPersonaId?: string | null
   totalRounds: number
+  wordLimitPerTurn?: number
   factCheckMode: 'off' | 'standard' | 'strict'
 }
 
@@ -27,10 +29,9 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
   const [config, setConfig] = useState<DebateConfig>({
     proModelId: '',
     conModelId: '',
-    topicId: null,
-    proPersonaId: null,
-    conPersonaId: null,
+    topicSelection: 'random',
     totalRounds: 3,
+    wordLimitPerTurn: 500,
     factCheckMode: 'standard',
   })
 
@@ -92,7 +93,21 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
       return
     }
 
-    onSubmit(config)
+    // Build the final config based on topic mode
+    const finalConfig: DebateConfig = {
+      ...config,
+      topicSelection: topicMode,
+    }
+
+    // Only include topicId if manual mode and a topic is selected
+    if (topicMode === 'manual' && config.topicId) {
+      finalConfig.topicId = config.topicId
+    } else {
+      // Remove topicId for random mode
+      delete finalConfig.topicId
+    }
+
+    onSubmit(finalConfig)
   }
 
   if (loadingData) {
@@ -197,7 +212,10 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
         <div className="flex gap-2 mb-2">
           <button
             type="button"
-            onClick={() => setTopicMode('random')}
+            onClick={() => {
+              setTopicMode('random')
+              setConfig({ ...config, topicSelection: 'random', topicId: undefined })
+            }}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               topicMode === 'random'
                 ? 'bg-blue-600 text-white'
@@ -208,7 +226,10 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
           </button>
           <button
             type="button"
-            onClick={() => setTopicMode('manual')}
+            onClick={() => {
+              setTopicMode('manual')
+              setConfig({ ...config, topicSelection: 'manual' })
+            }}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               topicMode === 'manual'
                 ? 'bg-blue-600 text-white'
@@ -223,7 +244,7 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
           <div className="space-y-2">
             <select
               value={config.topicId || ''}
-              onChange={(e) => setConfig({ ...config, topicId: e.target.value })}
+              onChange={(e) => setConfig({ ...config, topicId: e.target.value || undefined })}
               className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               required={topicMode === 'manual'}
             >

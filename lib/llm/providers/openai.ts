@@ -6,6 +6,7 @@
 
 import { ChatOpenAI } from '@langchain/openai';
 import { BaseLLMProvider } from '../base-provider';
+import { stripThinkingTags } from '../utils/sanitize';
 import type {
   LLMMessage,
   LLMConfig,
@@ -87,8 +88,12 @@ export class OpenAIProvider extends BaseLLMProvider {
     const outputTokens = response.usage_metadata?.output_tokens || 0;
     const totalTokens = inputTokens + outputTokens;
 
+    // Sanitize thinking tags from response content
+    const rawContent = response.content as string;
+    const sanitizedContent = stripThinkingTags(rawContent);
+
     return {
-      content: response.content as string,
+      content: sanitizedContent,
       tokensUsed: {
         input: inputTokens,
         output: outputTokens,
@@ -120,15 +125,68 @@ export class OpenAIProvider extends BaseLLMProvider {
     );
 
     let fullContent = '';
+    let buffer = '';
+    let insideThinkingTag = false;
     
     for await (const chunk of stream) {
       const content = chunk.content as string;
       fullContent += content;
+      buffer += content;
       
-      yield {
-        content,
-        isComplete: false,
-      };
+      // Process buffer for thinking tag boundaries
+      while (true) {
+        if (!insideThinkingTag) {
+          // Look for opening tag
+          if (buffer.includes('<thought>')) {
+            // Yield content before the tag
+            const beforeTag = buffer.substring(0, buffer.indexOf('<thought>'));
+            if (beforeTag) {
+              yield {
+                content: beforeTag,
+                isComplete: false,
+              };
+            }
+            // Move past the opening tag and mark as inside
+            buffer = buffer.substring(buffer.indexOf('<thought>') + '<thought>'.length);
+            insideThinkingTag = true;
+          } else {
+            // No opening tag found, yield buffer if it doesn't look like a partial tag
+            if (buffer && !buffer.endsWith('<') && !buffer.endsWith('<t') && 
+                !buffer.endsWith('<th') && !buffer.endsWith('<tho') && 
+                !buffer.endsWith('<thou') && !buffer.endsWith('<thoug') && 
+                !buffer.endsWith('<though') && !buffer.endsWith('<thought')) {
+              yield {
+                content: buffer,
+                isComplete: false,
+              };
+              buffer = '';
+            }
+            break;
+          }
+        } else {
+          // Inside thinking tag, look for closing tag
+          if (buffer.includes('</thought>')) {
+            // Discard content up to and including the closing tag
+            buffer = buffer.substring(buffer.indexOf('</thought>') + '</thought>'.length);
+            insideThinkingTag = false;
+            // Continue processing in case there's more content
+          } else {
+            // No closing tag yet, keep buffering
+            break;
+          }
+        }
+      }
+    }
+    
+    // Yield any remaining buffered content (in case stream ended mid-tag)
+    if (buffer && !insideThinkingTag) {
+      const sanitized = stripThinkingTags(buffer);
+      if (sanitized) {
+        yield {
+          content: sanitized,
+          isComplete: false,
+        };
+      }
     }
 
     // Final chunk with token usage

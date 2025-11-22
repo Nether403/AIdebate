@@ -430,7 +430,7 @@ Provide your evaluation now:`;
  */
 export function createJudgeAgent(config?: Partial<JudgeConfig>): JudgeAgent {
   const defaultConfig: JudgeConfig = {
-    model: 'gemini-3.0-pro',
+    model: 'gemini-3-pro-preview',
     provider: 'google',
     temperature: 0.3,
     maxTokens: 2000,

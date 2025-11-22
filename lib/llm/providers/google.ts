@@ -17,7 +17,11 @@ import type {
 
 export class GoogleProvider extends BaseLLMProvider {
   protected pricing: ModelPricing = {
-    // Gemini 3.0 series (Latest frontier - November 2025)
+    // Gemini 3 series (Latest frontier - November 2025)
+    'gemini-3-pro-preview': {
+      inputCostPer1M: 1.25,
+      outputCostPer1M: 5.00,
+    },
     'gemini-3.0-pro': {
       inputCostPer1M: 1.25,
       outputCostPer1M: 5.00,
@@ -26,7 +30,11 @@ export class GoogleProvider extends BaseLLMProvider {
       inputCostPer1M: 1.25,
       outputCostPer1M: 5.00,
     },
-    // Gemini 2.5 series (Latest frontier - November 2025)
+    // Gemini 2.5 series (Latest frontier - June 2025)
+    'gemini-2.5-pro': {
+      inputCostPer1M: 1.25,
+      outputCostPer1M: 5.00,
+    },
     'gemini-2.5-flash': {
       inputCostPer1M: 0.075,
       outputCostPer1M: 0.30,
@@ -36,7 +44,7 @@ export class GoogleProvider extends BaseLLMProvider {
       inputCostPer1M: 0.00,
       outputCostPer1M: 0.00,
     },
-    // Gemini 1.5 series (Legacy)
+    // Gemini 1.5 series (Legacy - kept for backward compatibility)
     'gemini-1.5-pro': {
       inputCostPer1M: 1.25,
       outputCostPer1M: 5.00,

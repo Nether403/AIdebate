@@ -10,7 +10,7 @@ import { glob } from 'glob';
 async function runTests() {
   console.log('Running LLM Client Tests...\n');
 
-  const testFiles = await glob('lib/llm/__tests__/**/*.test.ts');
+  const testFiles = await glob('lib/llm/**/*.test.ts');
   
   if (testFiles.length === 0) {
     console.log('No test files found.');
