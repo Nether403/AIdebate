@@ -49,7 +49,7 @@ export async function* streamWithSSE(
     let fullContent = '';
     let hasTimedOut = false;
 
-    const processStream = async () => {
+    const processStream = async function* () {
       for await (const chunk of streamGenerator) {
         if (hasTimedOut) break;
 
