@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     
     // Check spending cap before creating debate
     const costGuardResponse = await costGuardMiddleware({
-      rounds: configValidation.data.rounds || 3,
+      rounds: configValidation.data.totalRounds || 3,
       factCheckingEnabled: configValidation.data.factCheckMode !== 'off',
       judgeModel: 'gemini-3.0-pro', // Default judge model
     })
