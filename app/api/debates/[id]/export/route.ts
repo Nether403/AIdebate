@@ -11,10 +11,10 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const debateId = params.id
+    const { id: debateId } = await params
 
     // Fetch debate with all related data
     const debate = await db.query.debates.findFirst({
