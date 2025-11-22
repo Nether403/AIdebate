@@ -271,7 +271,7 @@ export async function* parseSSEStream(
 /**
  * Timeout wrapper for streaming operations
  */
-export async function withStreamTimeout<T>(
+export async function* withStreamTimeout<T>(
   generator: AsyncGenerator<T>,
   timeoutMs: number,
   onTimeout?: () => void
