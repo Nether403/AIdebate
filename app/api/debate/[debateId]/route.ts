@@ -5,10 +5,10 @@ import { eq } from 'drizzle-orm'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { debateId: string } }
+  { params }: { params: Promise<{ debateId: string }> }
 ) {
   try {
-    const { debateId } = params
+    const { debateId } = await params
 
     // Fetch debate with all related data
     const debate = await db.query.debates.findFirst({

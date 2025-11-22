@@ -31,9 +31,9 @@ function formatSSEMessage(event: string, data: any): string {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { debateId: string } }
+  { params }: { params: Promise<{ debateId: string }> }
 ) {
-  const debateId = params.debateId
+  const { debateId } = await params
   
   // Verify debate exists
   const debate = await db.query.debates.findFirst({
