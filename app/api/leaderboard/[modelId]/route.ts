@@ -18,7 +18,7 @@ import { rateLimitMiddleware, RATE_LIMITS } from '@/lib/middleware/rate-limit'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { modelId: string } }
+  { params }: { params: Promise<{ modelId: string }> }
 ) {
   try {
     // Apply rate limiting
@@ -27,7 +27,7 @@ export async function GET(
       return rateLimitResponse
     }
 
-    const { modelId } = params
+    const { modelId } = await params
 
     // Fetch model details
     const model = await db.query.models.findFirst({
