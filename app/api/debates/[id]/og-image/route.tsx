@@ -12,10 +12,10 @@ export const runtime = 'edge'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const debateId = params.id
+    const { id: debateId } = await params
 
     // Fetch debate data
     const debate = await db.query.debates.findFirst({
