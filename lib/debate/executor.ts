@@ -9,7 +9,8 @@ import { compileDebateGraph, type DebateState } from '@/lib/agents/graph'
 import { db } from '@/lib/db/client'
 import { debateEvaluations, debates } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { JudgeParseError, type ConsensusVerdict, type JudgeVerdict } from '@/lib/agents/judge'
+import { type ConsensusVerdict, type JudgeVerdict } from '@/lib/agents/judge'
+import { buildJudgeFailureErrorState, buildJudgeFailureEvaluationValues } from '@/lib/debate/judge-failure'
 
 /**
  * Execute a debate using LangGraph
@@ -197,35 +198,18 @@ export async function executeDebate(debateId: string): Promise<void> {
       }
     } catch (judgeError) {
       console.error(`[Executor] Error running AI judge:`, judgeError)
-      const isParseError = judgeError instanceof JudgeParseError
-      await db.insert(debateEvaluations).values({
+      await db.insert(debateEvaluations).values(buildJudgeFailureEvaluationValues({
         debateId,
-        judgeProvider: debate.judgeProvider || 'unknown',
-        judgeModel: debate.judgeModel || process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'unknown',
-        evaluationOrder: isParseError ? judgeError.evaluationOrder : 'consensus',
-        winner: null,
-        proScore: null,
-        conScore: null,
-        reasoning: judgeError instanceof Error ? judgeError.message : String(judgeError),
-        rubricScores: {},
-        positionBiasDetected: false,
-        parseStatus: isParseError ? 'parse_failed' : 'error',
-        rawResponse: isParseError ? judgeError.rawResponse : null,
-        errorMessage: judgeError instanceof Error ? judgeError.message : String(judgeError),
+        judgeProvider: debate.judgeProvider,
+        judgeModel: debate.judgeModel,
         promptVersion: debate.promptVersion,
-        schemaVersion: 'judge-v1',
-        consensus: null,
-        tiebreakerUsed: null,
-      })
+        error: judgeError,
+      }))
 
       await db.update(debates)
         .set({
           status: 'evaluation_failed',
-          errorState: {
-            stage: 'judge',
-            parseStatus: isParseError ? 'parse_failed' : 'error',
-            message: judgeError instanceof Error ? judgeError.message : String(judgeError),
-          },
+          errorState: buildJudgeFailureErrorState(judgeError),
           completedAt: new Date(),
         })
         .where(eq(debates.id, debateId))
