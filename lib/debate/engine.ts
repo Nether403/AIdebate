@@ -74,6 +74,7 @@ export class DebateEngine {
     const factCheckerConfig = getModelConfig('fact-checker')
 
     const [debate] = await db.insert(debates).values({
+      benchmarkRunId: config.benchmarkRunId || null,
       topicId,
       proModelId: config.proModelId,
       conModelId: config.conModelId,

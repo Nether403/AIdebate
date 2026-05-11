@@ -4,6 +4,8 @@ export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'xai' | 'openrou
 
 export type DebateStatus = 'pending' | 'running' | 'completed' | 'failed' | 'evaluation_failed' | 'cancelled'
 
+export type BenchmarkRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+
 export type FactCheckMode = 'standard' | 'strict' | 'off'
 
 export type DebateWinner = 'pro' | 'con' | 'tie' | null
@@ -75,6 +77,7 @@ export interface Persona {
 // Debate interface
 export interface Debate {
   id: string
+  benchmarkRunId: string | null
   topicId: string
   proModelId: string
   conModelId: string
@@ -98,6 +101,21 @@ export interface Debate {
   crowdVotesProCount: number
   crowdVotesConCount: number
   crowdVotesTieCount: number
+  startedAt: Date | null
+  completedAt: Date | null
+  createdAt: Date
+}
+
+export interface BenchmarkRun {
+  id: string
+  name: string
+  description: string | null
+  status: BenchmarkRunStatus
+  config: Record<string, unknown>
+  totalDebates: number
+  completedDebates: number
+  failedDebates: number
+  evaluationFailedDebates: number
   startedAt: Date | null
   completedAt: Date | null
   createdAt: Date

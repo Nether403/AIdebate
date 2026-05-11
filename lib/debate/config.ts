@@ -6,6 +6,8 @@ import type { DebateSide, FactCheckMode } from '@/types'
  * Validates all parameters for initializing a debate
  */
 export const DebateConfigSchema = z.object({
+  benchmarkRunId: z.string().uuid('Benchmark run ID must be a valid UUID').optional().nullable(),
+
   // Model selection
   proModelId: z.string().uuid('Pro model ID must be a valid UUID'),
   conModelId: z.string().uuid('Con model ID must be a valid UUID'),

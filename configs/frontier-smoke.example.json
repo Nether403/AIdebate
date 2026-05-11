@@ -1,0 +1,14 @@
+{
+  "name": "frontier-smoke",
+  "description": "Example one-debate smoke benchmark. Replace IDs with active model/topic IDs from your database before running.",
+  "debates": [
+    {
+      "proModelId": "00000000-0000-0000-0000-000000000001",
+      "conModelId": "00000000-0000-0000-0000-000000000002",
+      "topicSelection": "random",
+      "totalRounds": 1,
+      "wordLimitPerTurn": 250,
+      "factCheckMode": "standard"
+    }
+  ]
+}

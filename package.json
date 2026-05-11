@@ -15,6 +15,7 @@
     "test:unit": "tsx tests/run-unit-tests.ts",
     "test:integration": "tsx --env-file=.env tests/run-integration-tests.ts",
     "test:live": "tsx --env-file=.env tests/run-live-provider-tests.ts",
+    "benchmark:run": "tsx --env-file=.env scripts/run-benchmark.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",

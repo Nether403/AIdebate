@@ -7,6 +7,8 @@ const testFiles = [
   'lib/agents/__tests__/judge-parse-failure.test.ts',
   'lib/debate/__tests__/judge-failure.test.ts',
   'app/api/debates/[id]/export/__tests__/format.test.ts',
+  'lib/benchmark/__tests__/config.test.ts',
+  'lib/benchmark/__tests__/runner.test.ts',
 ]
 
 const stream = run({ files: testFiles, concurrency: true })

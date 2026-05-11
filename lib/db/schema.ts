@@ -51,9 +51,29 @@ export const personas = pgTable('personas', {
   nameIdx: uniqueIndex('personas_name_idx').on(table.name),
 }))
 
+// Benchmark runs table - groups debates from the same benchmark configuration
+export const benchmarkRuns = pgTable('benchmark_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  status: text('status').default('pending').notNull(), // 'pending', 'running', 'completed', 'failed', 'cancelled'
+  config: jsonb('config').notNull(),
+  totalDebates: integer('total_debates').default(0).notNull(),
+  completedDebates: integer('completed_debates').default(0).notNull(),
+  failedDebates: integer('failed_debates').default(0).notNull(),
+  evaluationFailedDebates: integer('evaluation_failed_debates').default(0).notNull(),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  statusIdx: index('benchmark_runs_status_idx').on(table.status),
+  createdAtIdx: index('benchmark_runs_created_at_idx').on(table.createdAt),
+}))
+
 // Debates table - stores debate sessions
 export const debates = pgTable('debates', {
   id: uuid('id').defaultRandom().primaryKey(),
+  benchmarkRunId: uuid('benchmark_run_id').references(() => benchmarkRuns.id, { onDelete: 'set null' }),
   topicId: uuid('topic_id').references(() => topics.id).notNull(),
   proModelId: uuid('pro_model_id').references(() => models.id).notNull(),
   conModelId: uuid('con_model_id').references(() => models.id).notNull(),
@@ -81,6 +101,7 @@ export const debates = pgTable('debates', {
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
+  benchmarkRunIdx: index('debates_benchmark_run_idx').on(table.benchmarkRunId),
   statusIdx: index('debates_status_idx').on(table.status),
   topicIdx: index('debates_topic_idx').on(table.topicId),
   proModelIdx: index('debates_pro_model_idx').on(table.proModelId),
@@ -227,7 +248,15 @@ export const personasRelations = relations(personas, ({ many }) => ({
   conDebates: many(debates, { relationName: 'conPersona' }),
 }))
 
+export const benchmarkRunsRelations = relations(benchmarkRuns, ({ many }) => ({
+  debates: many(debates),
+}))
+
 export const debatesRelations = relations(debates, ({ one, many }) => ({
+  benchmarkRun: one(benchmarkRuns, {
+    fields: [debates.benchmarkRunId],
+    references: [benchmarkRuns.id],
+  }),
   topic: one(topics, {
     fields: [debates.topicId],
     references: [topics.id],
