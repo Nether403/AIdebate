@@ -23,13 +23,25 @@ import { v4 as uuidv4 } from 'uuid'
 export async function roundTransitionNode(state: DebateState): Promise<Partial<DebateState>> {
   console.log(`[Round Transition] Processing round ${state.currentRound}`)
   
-  // Check if current turn draft exists and should be persisted
+  // The Round Transition node is called AFTER each fact-checker validation
+  // We need to persist the current turn if it was accepted
   if (state.currentTurnDraft && !state.shouldRejectTurn) {
     await persistTurn(state)
+    console.log(`[Round Transition] Persisted ${state.currentSpeaker} turn for round ${state.currentRound}`)
   }
   
-  // Check if round is complete (both Pro and Con have spoken)
-  const isRoundComplete = checkRoundComplete(state)
+  // Check if round is complete (both Pro and Con have spoken in this round)
+  const turnsInCurrentRound = await db.query.debateTurns.findMany({
+    where: eq(debateTurns.debateId, state.debateId),
+  })
+  
+  const currentRoundTurns = turnsInCurrentRound.filter(t => t.roundNumber === state.currentRound)
+  const proTurns = currentRoundTurns.filter(t => t.side === 'pro')
+  const conTurns = currentRoundTurns.filter(t => t.side === 'con')
+  
+  console.log(`[Round Transition] Current round has ${proTurns.length} pro turns and ${conTurns.length} con turns`)
+  
+  const isRoundComplete = proTurns.length > 0 && conTurns.length > 0
   
   if (!isRoundComplete) {
     console.log(`[Round Transition] Round ${state.currentRound} not complete, continuing`)
@@ -41,7 +53,7 @@ export async function roundTransitionNode(state: DebateState): Promise<Partial<D
     }
   }
   
-  console.log(`[Round Transition] Round ${state.currentRound} complete`)
+  console.log(`[Round Transition] Round ${state.currentRound} complete!`)
   
   // Check if this was the last round
   const isLastRound = state.currentRound >= state.totalRounds
@@ -49,20 +61,14 @@ export async function roundTransitionNode(state: DebateState): Promise<Partial<D
   if (isLastRound) {
     console.log(`[Round Transition] Debate complete after ${state.totalRounds} rounds`)
     
-    // Update debate status to completed
-    await db.update(debates)
-      .set({
-        status: 'completed',
-        completedAt: new Date(),
-      })
-      .where(eq(debates.id, state.debateId))
+    // Leave the debate in running state until the judge completes. A complete
+    // transcript without a valid judge result is not a completed research artifact.
     
     return {
       isDebateComplete: true,
       metadata: {
         ...state.metadata,
         debateCompletedAt: new Date().toISOString(),
-        totalTurns: state.transcript.length,
       },
     }
   }
@@ -111,9 +117,9 @@ function checkRoundComplete(state: DebateState): boolean {
 /**
  * Persist current turn to database
  */
-async function persistTurn(state: DebateState): Promise<void> {
+async function persistTurn(state: DebateState): Promise<string> {
   if (!state.currentTurnDraft) {
-    return
+    throw new Error('Cannot persist turn without a current turn draft')
   }
   
   const turn = state.currentTurnDraft
@@ -160,13 +166,14 @@ async function persistTurn(state: DebateState): Promise<void> {
           claim: result.claim,
           verdict: result.verdict,
           confidence: result.confidence,
-          sources: [], // Sources would be included if available
+          sources: result.sources || [],
           reasoning: result.reasoning,
         }))
       )
     }
     
     console.log(`[Round Transition] Turn persisted with ID: ${insertedTurn.id}`)
+    return insertedTurn.id
   } catch (error) {
     console.error('[Round Transition] Error persisting turn:', error)
     throw error

@@ -85,7 +85,7 @@ export async function GET(
         
         // Poll for new turns
         let lastTurnCount = 0
-        let isComplete = debate.status === 'completed' || debate.status === 'failed'
+        let isComplete = ['completed', 'failed', 'evaluation_failed', 'cancelled'].includes(debate.status)
         
         while (!isComplete) {
           // Get current turns
@@ -152,7 +152,7 @@ export async function GET(
           })
           
           if (updatedDebate) {
-            isComplete = updatedDebate.status === 'completed' || updatedDebate.status === 'failed'
+            isComplete = ['completed', 'failed', 'evaluation_failed', 'cancelled'].includes(updatedDebate.status)
             
             if (isComplete) {
               controller.enqueue(

@@ -49,9 +49,8 @@ export async function checkRateLimit(
   if (count >= config.maxRequests) {
     // Get the oldest request timestamp to calculate reset time
     const oldest = await redis.zrange(redisKey, 0, 0, { withScores: true }) as Array<{ score: number; member: string }>
-    const resetTime = oldest.length > 0 
-      ? oldest[0].score + config.windowMs
-      : now + config.windowMs
+    const oldestScore = oldest.length > 0 && oldest[0]?.score ? oldest[0].score : now
+    const resetTime = oldestScore + config.windowMs
     
     return {
       success: false,
@@ -105,10 +104,11 @@ export async function rateLimitMiddleware(
   const result = await checkRateLimit(ip, config)
   
   if (!result.success) {
+    const secondsUntilReset = Math.max(0, result.reset - Math.floor(Date.now() / 1000))
     return NextResponse.json(
       {
         error: 'Too many requests',
-        message: `Rate limit exceeded. Try again in ${result.reset - Math.floor(Date.now() / 1000)} seconds.`,
+        message: `Rate limit exceeded. Try again in ${secondsUntilReset} seconds.`,
         limit: result.limit,
         remaining: result.remaining,
         reset: result.reset,

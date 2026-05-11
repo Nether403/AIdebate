@@ -25,11 +25,22 @@ export function DebateOrchestrator({ debateId }: DebateOrchestratorProps) {
 
   useEffect(() => {
     fetchDebate()
-  }, [debateId])
+    
+    // Set up polling as a fallback if SSE doesn't work
+    const pollInterval = setInterval(() => {
+      if (debate?.status === 'running') {
+        console.log('[Orchestrator] Polling for updates...')
+        fetchDebate()
+      }
+    }, 2000) // Poll every 2 seconds
+    
+    return () => clearInterval(pollInterval)
+  }, [debateId, debate?.status])
 
   const fetchDebate = async () => {
     try {
       setIsLoading(true)
+      console.log(`[Orchestrator] Fetching debate ${debateId}...`)
       const response = await fetch(`/api/debate/${debateId}`)
       
       if (!response.ok) {
@@ -37,13 +48,21 @@ export function DebateOrchestrator({ debateId }: DebateOrchestratorProps) {
       }
 
       const data = await response.json()
+      console.log(`[Orchestrator] Debate data received:`, {
+        status: data.status,
+        currentRound: data.currentRound,
+        totalRounds: data.totalRounds,
+        turnsCount: data.turns?.length || 0,
+      })
       setDebate(data)
       
-      // If debate is in progress, start streaming
-      if (data.status === 'in_progress') {
+      // If debate is in progress and not already streaming, start streaming
+      if (data.status === 'running' && !isStreaming) {
+        console.log('[Orchestrator] Starting SSE stream...')
         startStreaming()
       }
     } catch (err) {
+      console.error('[Orchestrator] Error fetching debate:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsLoading(false)
@@ -54,39 +73,71 @@ export function DebateOrchestrator({ debateId }: DebateOrchestratorProps) {
     setIsStreaming(true)
     const eventSource = new EventSource(`/api/debate/stream/${debateId}`)
 
-    eventSource.onmessage = (event) => {
-      const update = JSON.parse(event.data)
-      
-      if (update.type === 'turn') {
-        setDebate((prev) => {
-          if (!prev) return null
-          return {
-            ...prev,
-            turns: [...prev.turns, update.turn],
-            currentRound: update.turn.roundNumber,
-          }
-        })
-      } else if (update.type === 'status') {
-        setDebate((prev) => {
-          if (!prev) return null
-          return {
-            ...prev,
-            status: update.status,
-            winner: update.winner,
-            completedAt: update.completedAt,
-          }
-        })
-        
-        if (update.status === 'completed' || update.status === 'failed') {
-          eventSource.close()
-          setIsStreaming(false)
-        }
-      }
-    }
+    // Listen for debate start
+    eventSource.addEventListener('debate-start', (event) => {
+      console.log('[Stream] Debate started:', event.data)
+    })
 
-    eventSource.onerror = () => {
+    // Listen for turn speeches (the main content)
+    eventSource.addEventListener('turn-speech', (event) => {
+      const data = JSON.parse(event.data)
+      console.log('[Stream] Turn speech received:', data)
+      
+      // Poll for the updated debate data since turns are saved to DB
+      // Use a small delay to ensure DB write has completed
+      setTimeout(() => {
+        fetchDebate()
+      }, 500)
+    })
+    
+    // Listen for reflection phase
+    eventSource.addEventListener('turn-reflection', (event) => {
+      const data = JSON.parse(event.data)
+      console.log('[Stream] Reflection received:', data)
+      // Reflections are part of the turn, will be fetched with turn-speech
+    })
+    
+    // Listen for critique phase
+    eventSource.addEventListener('turn-critique', (event) => {
+      const data = JSON.parse(event.data)
+      console.log('[Stream] Critique received:', data)
+      // Critiques are part of the turn, will be fetched with turn-speech
+    })
+
+    // Listen for debate completion
+    eventSource.addEventListener('debate-complete', (event) => {
+      const data = JSON.parse(event.data)
+      console.log('[Stream] Debate completed:', data)
+      
+      setDebate((prev) => {
+        if (!prev) return null
+        return {
+          ...prev,
+          status: data.status,
+          winner: data.winner,
+          completedAt: data.completedAt,
+        }
+      })
+      
       eventSource.close()
       setIsStreaming(false)
+      
+      // Final refresh to get all data including judge verdict
+      fetchDebate()
+    })
+
+    // Listen for errors
+    eventSource.addEventListener('error', (event) => {
+      console.error('[Stream] Error event:', event)
+    })
+
+    eventSource.onerror = (error) => {
+      console.error('[Stream] Connection error:', error)
+      eventSource.close()
+      setIsStreaming(false)
+      
+      // Refresh to get latest state
+      fetchDebate()
     }
 
     return () => {
@@ -132,7 +183,8 @@ export function DebateOrchestrator({ debateId }: DebateOrchestratorProps) {
             </h1>
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
               debate.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-              debate.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+              debate.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
+              debate.status === 'evaluation_failed' ? 'bg-yellow-500/20 text-yellow-400' :
               debate.status === 'failed' ? 'bg-red-500/20 text-red-400' :
               'bg-slate-500/20 text-slate-400'
             }`}>

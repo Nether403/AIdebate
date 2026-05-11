@@ -14,6 +14,7 @@ import { validateRequest, debateConfigSchema } from '@/lib/middleware/validation
 import { rateLimitMiddleware, RATE_LIMITS } from '@/lib/middleware/rate-limit'
 import { costGuardMiddleware } from '@/lib/middleware/cost-guard'
 import { logCost } from '@/lib/security/cost-monitoring'
+import { executeDebate } from '@/lib/debate/executor'
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,12 +61,17 @@ export async function POST(request: NextRequest) {
     // Start the debate
     await engine.startDebate(session.id)
     
-    // Return debate information
+    // Execute the debate in the background (don't await)
+    executeDebate(session.id).catch((error) => {
+      console.error(`Background debate execution failed for ${session.id}:`, error)
+    })
+    
+    // Return debate information immediately
     return NextResponse.json({
       success: true,
       debate: {
         id: session.id,
-        status: 'in_progress',
+        status: 'running',
         topicMotion: session.state.topicMotion,
         proModelId: session.state.proModelId,
         conModelId: session.state.conModelId,
@@ -73,7 +79,7 @@ export async function POST(request: NextRequest) {
         totalRounds: session.state.totalRounds,
         startedAt: session.state.startedAt,
       },
-      message: 'Debate initialized successfully. Use the streaming endpoint to watch the debate progress.',
+      message: 'Debate started successfully. Watch the streaming endpoint for real-time updates.',
     }, { status: 201 })
     
   } catch (error) {

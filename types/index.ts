@@ -2,7 +2,7 @@
 
 export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'xai' | 'openrouter'
 
-export type DebateStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
+export type DebateStatus = 'pending' | 'running' | 'completed' | 'failed' | 'evaluation_failed' | 'cancelled'
 
 export type FactCheckMode = 'standard' | 'strict' | 'off'
 
@@ -28,7 +28,7 @@ export type TopicDifficulty = 'easy' | 'medium' | 'hard'
 
 export type DebateSide = 'pro' | 'con'
 
-export type EvaluationOrder = 'pro_first' | 'con_first'
+export type EvaluationOrder = 'pro_first' | 'con_first' | 'tiebreaker' | 'consensus'
 
 // Model interface
 export interface Model {
@@ -84,6 +84,14 @@ export interface Debate {
   totalRounds: number
   currentRound: number
   factCheckMode: FactCheckMode
+  wordLimitPerTurn: number
+  judgeProvider: ModelProvider | null
+  judgeModel: string | null
+  factCheckerProvider: ModelProvider | null
+  factCheckerModel: string | null
+  promptVersion: string | null
+  generationParams: Record<string, unknown> | null
+  errorState: Record<string, unknown> | null
   winner: DebateWinner
   crowdWinner: DebateWinner
   aiJudgeWinner: DebateWinner
@@ -132,13 +140,21 @@ export interface DebateEvaluation {
   id: string
   debateId: string
   judgeModel: string
+  judgeProvider: ModelProvider | null
   evaluationOrder: EvaluationOrder
   winner: DebateWinner
-  proScore: number
-  conScore: number
+  proScore: number | null
+  conScore: number | null
   reasoning: string
-  rubricScores: Record<string, number>
+  rubricScores: Record<string, unknown>
   positionBiasDetected: boolean
+  parseStatus: 'parsed' | 'parse_failed' | 'error'
+  rawResponse: string | null
+  errorMessage: string | null
+  promptVersion: string | null
+  schemaVersion: string | null
+  consensus: boolean | null
+  tiebreakerUsed: boolean | null
   createdAt: Date
 }
 

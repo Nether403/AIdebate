@@ -1,10 +1,10 @@
 /**
- * OpenAI Provider Adapter
- * Supports GPT-5.1 (Instant and Thinking modes), GPT-4o-mini, and other OpenAI models
- * Latest frontier: GPT-5.1 (November 2025)
+ * Azure OpenAI Provider Adapter
+ * Keeps the existing `openai` provider key while routing direct OpenAI-style
+ * infrastructure calls through Azure OpenAI deployments.
  */
 
-import { ChatOpenAI } from '@langchain/openai';
+import { AzureChatOpenAI } from '@langchain/openai';
 import { BaseLLMProvider } from '../base-provider';
 import { stripThinkingTags } from '../utils/sanitize';
 import type {
@@ -17,17 +17,31 @@ import type {
 } from '@/types/llm';
 
 export class OpenAIProvider extends BaseLLMProvider {
+  private readonly azureOpenAIApiInstanceName?: string;
+  private readonly azureOpenAIApiDeploymentName?: string;
+  private readonly azureOpenAIApiVersion?: string;
+  private readonly azureOpenAIEndpoint?: string;
+
   protected pricing: ModelPricing = {
+    // o1 reasoning models (Extended thinking)
+    'o1': {
+      inputCostPer1M: 15.00,
+      outputCostPer1M: 60.00,
+    },
+    'o1-preview': {
+      inputCostPer1M: 15.00,
+      outputCostPer1M: 60.00,
+    },
+    'o1-mini': {
+      inputCostPer1M: 3.00,
+      outputCostPer1M: 12.00,
+    },
     // GPT-5.1 models (Latest frontier - November 2025)
     'gpt-5.1': {
       inputCostPer1M: 1.25,
       outputCostPer1M: 10.00,
     },
     'gpt-5.1-instant': {
-      inputCostPer1M: 1.25,
-      outputCostPer1M: 10.00,
-    },
-    'gpt-5.1-thinking': {
       inputCostPer1M: 1.25,
       outputCostPer1M: 10.00,
     },
@@ -56,6 +70,25 @@ export class OpenAIProvider extends BaseLLMProvider {
 
   constructor(options: LLMClientOptions) {
     super(options);
+    this.azureOpenAIApiInstanceName = options.azureOpenAIApiInstanceName;
+    this.azureOpenAIApiDeploymentName = options.azureOpenAIApiDeploymentName;
+    this.azureOpenAIApiVersion = options.azureOpenAIApiVersion;
+    this.azureOpenAIEndpoint = options.azureOpenAIEndpoint;
+  }
+
+  private createModel(config: LLMConfig, streaming = false): AzureChatOpenAI {
+    return new AzureChatOpenAI({
+      azureOpenAIApiKey: this.apiKey,
+      azureOpenAIApiInstanceName: this.azureOpenAIApiInstanceName,
+      azureOpenAIApiDeploymentName: this.azureOpenAIApiDeploymentName || config.model,
+      azureOpenAIApiVersion: this.azureOpenAIApiVersion,
+      azureOpenAIEndpoint: this.azureOpenAIEndpoint,
+      temperature: config.temperature ?? 0.7,
+      maxTokens: config.maxTokens,
+      topP: config.topP,
+      streaming,
+      timeout: config.timeout || this.timeout,
+    });
   }
 
   async generate(messages: LLMMessage[], config: LLMConfig): Promise<LLMResponse> {
@@ -63,24 +96,17 @@ export class OpenAIProvider extends BaseLLMProvider {
 
     const response = await this.withRetry(
       async () => {
-        const model = new ChatOpenAI({
-          openAIApiKey: this.apiKey,
-          modelName: config.model,
-          temperature: config.temperature ?? 0.7,
-          maxTokens: config.maxTokens,
-          topP: config.topP,
-          timeout: config.timeout || this.timeout,
-        });
+        const model = this.createModel(config);
 
         const formattedMessages = messages.map((msg) => [msg.role, msg.content] as [string, string]);
         
         return await this.withTimeout(
           model.invoke(formattedMessages),
           config.timeout || this.timeout,
-          'OpenAI generate'
+          'Azure OpenAI generate'
         );
       },
-      'OpenAI generate'
+      'Azure OpenAI generate'
     );
 
     const latencyMs = Date.now() - startTime;
@@ -107,21 +133,13 @@ export class OpenAIProvider extends BaseLLMProvider {
   }
 
   async *stream(messages: LLMMessage[], config: LLMConfig): AsyncGenerator<StreamChunk> {
-    const model = new ChatOpenAI({
-      openAIApiKey: this.apiKey,
-      modelName: config.model,
-      temperature: config.temperature ?? 0.7,
-      maxTokens: config.maxTokens,
-      topP: config.topP,
-      streaming: true,
-      timeout: config.timeout || this.timeout,
-    });
+    const model = this.createModel(config, true);
 
     const formattedMessages = messages.map((msg) => [msg.role, msg.content] as [string, string]);
     
     const stream = await this.withRetry(
       async () => model.stream(formattedMessages),
-      'OpenAI stream'
+      'Azure OpenAI stream'
     );
 
     let fullContent = '';

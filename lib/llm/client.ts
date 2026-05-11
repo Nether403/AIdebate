@@ -26,10 +26,15 @@ export class LLMClient {
   }
 
   private initializeProviders(): void {
-    // Initialize OpenAI
-    if (process.env.OPENAI_API_KEY) {
+    // Initialize Azure OpenAI behind the existing `openai` provider key to keep
+    // current persisted model metadata stable during the revival reset.
+    if (process.env.AZURE_OPENAI_API_KEY) {
       this.providers.set('openai', new OpenAIProvider({
-        apiKey: process.env.OPENAI_API_KEY,
+        apiKey: process.env.AZURE_OPENAI_API_KEY,
+        azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME,
+        azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME,
+        azureOpenAIApiVersion: process.env.AZURE_OPENAI_API_VERSION,
+        azureOpenAIEndpoint: process.env.AZURE_OPENAI_ENDPOINT,
       }));
     }
 
@@ -76,19 +81,56 @@ export class LLMClient {
   }
 
   /**
-   * Generate a response from an LLM
+   * Generate a response from an LLM with automatic fallback
    */
   async generate(messages: LLMMessage[], config: LLMConfig): Promise<LLMResponse> {
-    const provider = this.getProvider(config.provider);
-    return await provider.generate(messages, config);
+    try {
+      const provider = this.getProvider(config.provider);
+      return await provider.generate(messages, config);
+    } catch (error) {
+      console.warn(`[LLMClient] Primary provider ${config.provider} failed, attempting fallback to OpenRouter`);
+      
+      // Try OpenRouter fallback if available and not already using it
+      if (config.provider !== 'openrouter' && this.isProviderAvailable('openrouter')) {
+        try {
+          const fallbackProvider = this.getProvider('openrouter');
+          const fallbackConfig = { ...config, provider: 'openrouter' as LLMProvider };
+          return await fallbackProvider.generate(messages, fallbackConfig);
+        } catch (fallbackError) {
+          console.error('[LLMClient] OpenRouter fallback also failed');
+          throw fallbackError;
+        }
+      }
+      
+      throw error;
+    }
   }
 
   /**
-   * Stream a response from an LLM
+   * Stream a response from an LLM with automatic fallback
    */
   async *stream(messages: LLMMessage[], config: LLMConfig): AsyncGenerator<StreamChunk> {
-    const provider = this.getProvider(config.provider);
-    yield* provider.stream(messages, config);
+    try {
+      const provider = this.getProvider(config.provider);
+      yield* provider.stream(messages, config);
+    } catch (error) {
+      console.warn(`[LLMClient] Primary provider ${config.provider} failed for streaming, attempting fallback to OpenRouter`);
+      
+      // Try OpenRouter fallback if available and not already using it
+      if (config.provider !== 'openrouter' && this.isProviderAvailable('openrouter')) {
+        try {
+          const fallbackProvider = this.getProvider('openrouter');
+          const fallbackConfig = { ...config, provider: 'openrouter' as LLMProvider };
+          yield* fallbackProvider.stream(messages, fallbackConfig);
+          return;
+        } catch (fallbackError) {
+          console.error('[LLMClient] OpenRouter fallback also failed for streaming');
+          throw fallbackError;
+        }
+      }
+      
+      throw error;
+    }
   }
 
   /**

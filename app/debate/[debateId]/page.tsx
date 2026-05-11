@@ -1,11 +1,12 @@
 import { DebateOrchestrator } from '@/components/debate'
 
 interface DebatePageProps {
-  params: {
+  params: Promise<{
     debateId: string
-  }
+  }>
 }
 
-export default function DebatePage({ params }: DebatePageProps) {
-  return <DebateOrchestrator debateId={params.debateId} />
+export default async function DebatePage({ params }: DebatePageProps) {
+  const { debateId } = await params
+  return <DebateOrchestrator debateId={debateId} />
 }

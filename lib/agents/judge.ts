@@ -47,6 +47,18 @@ export interface JudgeVerdict {
   };
 }
 
+export class JudgeParseError extends Error {
+  rawResponse: string;
+  evaluationOrder: EvaluationOrder;
+
+  constructor(message: string, rawResponse: string, evaluationOrder: EvaluationOrder) {
+    super(message);
+    this.name = 'JudgeParseError';
+    this.rawResponse = rawResponse;
+    this.evaluationOrder = evaluationOrder;
+  }
+}
+
 export interface ConsensusVerdict {
   final_winner: DebateWinner;
   pro_first_verdict: JudgeVerdict;
@@ -91,7 +103,7 @@ export class JudgeAgent {
       temperature: 0.3, // Lower temperature for more consistent judgments
       maxTokens: 2000,
       useTiebreaker: true,
-      tiebreakerModel: config.tiebreakerModel || 'gpt-5.1',
+      tiebreakerModel: config.tiebreakerModel || process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
       tiebreakerProvider: config.tiebreakerProvider || 'openai',
       ...config,
     };
@@ -133,6 +145,10 @@ export class JudgeAgent {
         },
       };
     } catch (error) {
+      if (error instanceof JudgeParseError) {
+        throw error;
+      }
+
       console.error('Error evaluating debate:', error);
       throw new Error(`Judge evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -409,24 +425,19 @@ Provide your evaluation now:`;
     } catch (error) {
       console.error('Error parsing judge response:', error);
       console.error('Raw response:', response);
-      
-      // Return a default verdict in case of parsing error
-      return {
-        winner: 'tie',
-        scores: {
-          logical_coherence: 5,
-          rebuttal_strength: 5,
-          factuality: 5,
-        },
-        justification: `Unable to parse judge response. Error: ${error instanceof Error ? error.message : 'Unknown error'}. Raw response: ${response.substring(0, 200)}...`,
-        flagged_fallacies: [],
-      };
+
+      throw new JudgeParseError(
+        `Unable to parse judge response: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        response,
+        order
+      );
     }
   }
 }
 
 /**
  * Factory function to create a judge agent with default configuration
+ * Uses hybrid architecture: Gemini 3.0 Pro direct API with OpenRouter fallback
  */
 export function createJudgeAgent(config?: Partial<JudgeConfig>): JudgeAgent {
   const defaultConfig: JudgeConfig = {
@@ -435,9 +446,23 @@ export function createJudgeAgent(config?: Partial<JudgeConfig>): JudgeAgent {
     temperature: 0.3,
     maxTokens: 2000,
     useTiebreaker: true,
-    tiebreakerModel: 'gpt-5.1',
+    tiebreakerModel: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
     tiebreakerProvider: 'openai',
   };
 
   return new JudgeAgent({ ...defaultConfig, ...config });
+}
+
+/**
+ * Create judge agent using model configuration
+ */
+export function createJudgeAgentFromConfig(): JudgeAgent {
+  // Import here to avoid circular dependency
+  const { getModelConfig } = require('@/lib/llm/model-config');
+  const judgeConfig = getModelConfig('judge');
+  
+  return createJudgeAgent({
+    model: judgeConfig.model,
+    provider: judgeConfig.provider,
+  });
 }

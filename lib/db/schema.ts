@@ -59,10 +59,18 @@ export const debates = pgTable('debates', {
   conModelId: uuid('con_model_id').references(() => models.id).notNull(),
   proPersonaId: uuid('pro_persona_id').references(() => personas.id),
   conPersonaId: uuid('con_persona_id').references(() => personas.id),
-  status: text('status').notNull(), // 'pending', 'in_progress', 'completed', 'failed'
+  status: text('status').notNull(), // 'pending', 'running', 'completed', 'failed', 'evaluation_failed', 'cancelled'
   totalRounds: integer('total_rounds').default(3).notNull(),
   currentRound: integer('current_round').default(0).notNull(),
   factCheckMode: text('fact_check_mode').default('standard').notNull(), // 'standard', 'strict', 'off'
+  wordLimitPerTurn: integer('word_limit_per_turn').default(500).notNull(),
+  judgeProvider: text('judge_provider'),
+  judgeModel: text('judge_model'),
+  factCheckerProvider: text('fact_checker_provider'),
+  factCheckerModel: text('fact_checker_model'),
+  promptVersion: text('prompt_version'),
+  generationParams: jsonb('generation_params'),
+  errorState: jsonb('error_state'),
   winner: text('winner'), // 'pro', 'con', 'tie', null if not judged yet
   crowdWinner: text('crowd_winner'), // Based on user votes
   aiJudgeWinner: text('ai_judge_winner'), // Based on AI judge
@@ -122,14 +130,22 @@ export const factChecks = pgTable('fact_checks', {
 export const debateEvaluations = pgTable('debate_evaluations', {
   id: uuid('id').defaultRandom().primaryKey(),
   debateId: uuid('debate_id').references(() => debates.id, { onDelete: 'cascade' }).notNull(),
+  judgeProvider: text('judge_provider'),
   judgeModel: text('judge_model').notNull(), // e.g., 'gemini-3.0-pro'
-  evaluationOrder: text('evaluation_order').notNull(), // 'pro_first' or 'con_first' for bias detection
-  winner: text('winner').notNull(), // 'pro', 'con', 'tie'
-  proScore: real('pro_score').notNull(),
-  conScore: real('con_score').notNull(),
+  evaluationOrder: text('evaluation_order').notNull(), // 'pro_first', 'con_first', 'tiebreaker', or 'consensus'
+  winner: text('winner'), // 'pro', 'con', 'tie', null if parsing/evaluation failed
+  proScore: real('pro_score'),
+  conScore: real('con_score'),
   reasoning: text('reasoning').notNull(),
   rubricScores: jsonb('rubric_scores').notNull(), // Detailed scores per criterion
   positionBiasDetected: boolean('position_bias_detected').default(false).notNull(),
+  parseStatus: text('parse_status').default('parsed').notNull(), // 'parsed', 'parse_failed', 'error'
+  rawResponse: text('raw_response'),
+  errorMessage: text('error_message'),
+  promptVersion: text('prompt_version'),
+  schemaVersion: text('schema_version'),
+  consensus: boolean('consensus'),
+  tiebreakerUsed: boolean('tiebreaker_used'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   debateIdx: index('debate_evaluations_debate_idx').on(table.debateId),

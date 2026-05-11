@@ -80,6 +80,17 @@ export async function GET(
         configuration: {
           totalRounds: debate.totalRounds,
           factCheckMode: debate.factCheckMode,
+          wordLimitPerTurn: debate.wordLimitPerTurn,
+          judge: {
+            provider: debate.judgeProvider,
+            model: debate.judgeModel,
+          },
+          factChecker: {
+            provider: debate.factCheckerProvider,
+            model: debate.factCheckerModel,
+          },
+          promptVersion: debate.promptVersion,
+          generationParams: debate.generationParams,
         },
         results: {
           winner: debate.winner,
@@ -90,6 +101,7 @@ export async function GET(
             con: debate.crowdVotesConCount,
             tie: debate.crowdVotesTieCount,
           },
+          errorState: debate.errorState,
         },
         timestamps: {
           created: debate.createdAt,
@@ -123,6 +135,7 @@ export async function GET(
         timestamp: turn.createdAt,
       })),
       evaluations: debate.evaluations.map(evaluation => ({
+        judgeProvider: evaluation.judgeProvider,
         judgeModel: evaluation.judgeModel,
         evaluationOrder: evaluation.evaluationOrder,
         winner: evaluation.winner,
@@ -133,6 +146,13 @@ export async function GET(
         rubricScores: evaluation.rubricScores,
         reasoning: evaluation.reasoning,
         positionBiasDetected: evaluation.positionBiasDetected,
+        parseStatus: evaluation.parseStatus,
+        rawResponse: evaluation.rawResponse,
+        errorMessage: evaluation.errorMessage,
+        promptVersion: evaluation.promptVersion,
+        schemaVersion: evaluation.schemaVersion,
+        consensus: evaluation.consensus,
+        tiebreakerUsed: evaluation.tiebreakerUsed,
         timestamp: evaluation.createdAt,
       })),
       exportMetadata: {

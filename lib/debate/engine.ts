@@ -4,6 +4,7 @@ import { eq, and, sql } from 'drizzle-orm'
 import type { DebateConfig } from './config'
 import { DebateTranscriptManager } from './transcript'
 import type { DebateStatus, DebateSide } from '@/types'
+import { getModelConfig } from '@/lib/llm/model-config'
 
 /**
  * Debate State - Current state of an active debate
@@ -69,6 +70,9 @@ export class DebateEngine {
     }
 
     // Create debate record
+    const judgeConfig = getModelConfig('judge')
+    const factCheckerConfig = getModelConfig('fact-checker')
+
     const [debate] = await db.insert(debates).values({
       topicId,
       proModelId: config.proModelId,
@@ -79,6 +83,25 @@ export class DebateEngine {
       totalRounds: config.totalRounds,
       currentRound: 0,
       factCheckMode: config.factCheckMode,
+      wordLimitPerTurn: config.wordLimitPerTurn,
+      judgeProvider: judgeConfig.provider,
+      judgeModel: judgeConfig.model,
+      factCheckerProvider: factCheckerConfig.provider,
+      factCheckerModel: factCheckerConfig.model,
+      promptVersion: 'debate-rcr-v1',
+      generationParams: {
+        totalRounds: config.totalRounds,
+        wordLimitPerTurn: config.wordLimitPerTurn,
+        factCheckMode: config.factCheckMode,
+        judge: {
+          provider: judgeConfig.provider,
+          model: judgeConfig.model,
+        },
+        factChecker: {
+          provider: factCheckerConfig.provider,
+          model: factCheckerConfig.model,
+        },
+      },
       startedAt: null,
       completedAt: null,
     }).returning()
@@ -134,12 +157,12 @@ export class DebateEngine {
   }
 
   /**
-   * Start a debate (transition from pending to in_progress)
+  * Start a debate (transition from pending to running)
    */
   async startDebate(debateId: string): Promise<void> {
     await db.update(debates)
       .set({
-        status: 'in_progress',
+        status: 'running',
         startedAt: new Date(),
         currentRound: 1,
       })
@@ -231,7 +254,7 @@ export class DebateEngine {
       proPersonaId: debate.proPersonaId,
       conPersonaId: debate.conPersonaId,
       factCheckMode: debate.factCheckMode,
-      wordLimitPerTurn: 500, // Default, should be stored in debate config
+      wordLimitPerTurn: debate.wordLimitPerTurn,
       startedAt: debate.startedAt,
       completedAt: debate.completedAt,
       lastCheckpoint: new Date(),
@@ -288,12 +311,9 @@ export class DebateEngine {
     // For now, we rely on the database state itself as the checkpoint
     // Future enhancement: Store in a separate checkpoints table with full state snapshot
     
-    // Update the debate's updatedAt timestamp to mark checkpoint
-    await db.update(debates)
-      .set({ 
-        // Drizzle will automatically update any timestamp fields on update
-      })
-      .where(eq(debates.id, debateId))
+    // For now, we just log the checkpoint creation
+    // The database state itself serves as the checkpoint
+    console.log(`Checkpoint created for debate ${debateId}`)
   }
 
   /**

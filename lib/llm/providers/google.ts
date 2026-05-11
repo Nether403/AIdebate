@@ -17,20 +17,11 @@ import type {
 
 export class GoogleProvider extends BaseLLMProvider {
   protected pricing: ModelPricing = {
-    // Gemini 3 series (Latest frontier - November 2025)
+    // Current active Gemini models (November 2025)
     'gemini-3-pro-preview': {
       inputCostPer1M: 1.25,
       outputCostPer1M: 5.00,
     },
-    'gemini-3.0-pro': {
-      inputCostPer1M: 1.25,
-      outputCostPer1M: 5.00,
-    },
-    'gemini-3-pro': {
-      inputCostPer1M: 1.25,
-      outputCostPer1M: 5.00,
-    },
-    // Gemini 2.5 series (Latest frontier - June 2025)
     'gemini-2.5-pro': {
       inputCostPer1M: 1.25,
       outputCostPer1M: 5.00,
@@ -38,24 +29,6 @@ export class GoogleProvider extends BaseLLMProvider {
     'gemini-2.5-flash': {
       inputCostPer1M: 0.075,
       outputCostPer1M: 0.30,
-    },
-    // Gemini 2.0 series (Legacy)
-    'gemini-2.0-flash-exp': {
-      inputCostPer1M: 0.00,
-      outputCostPer1M: 0.00,
-    },
-    // Gemini 1.5 series (Legacy - kept for backward compatibility)
-    'gemini-1.5-pro': {
-      inputCostPer1M: 1.25,
-      outputCostPer1M: 5.00,
-    },
-    'gemini-1.5-flash': {
-      inputCostPer1M: 0.075,
-      outputCostPer1M: 0.30,
-    },
-    'gemini-pro': {
-      inputCostPer1M: 0.50,
-      outputCostPer1M: 1.50,
     },
   };
 
@@ -76,13 +49,45 @@ export class GoogleProvider extends BaseLLMProvider {
           topP: config.topP,
         });
 
-        const formattedMessages = messages.map((msg) => [msg.role, msg.content] as [string, string]);
+        // Convert to LangChain message format
+        // Gemini doesn't support system messages, so we prepend them to the first user message
+        const formattedMessages: Array<{ role: string; content: string }> = [];
+        let systemContent = '';
         
-        return await this.withTimeout(
-          model.invoke(formattedMessages),
-          config.timeout || this.timeout,
-          'Google generate'
-        );
+        for (const msg of messages) {
+          if (msg.role === 'system') {
+            // Accumulate system messages
+            systemContent += msg.content + '\n\n';
+          } else if (msg.role === 'user') {
+            // Prepend system content to first user message
+            const content = systemContent ? systemContent + msg.content : msg.content;
+            formattedMessages.push({ role: 'human', content });
+            systemContent = ''; // Clear after first use
+          } else if (msg.role === 'assistant') {
+            formattedMessages.push({ role: 'ai', content: msg.content });
+          }
+        }
+        
+        try {
+          const result = await this.withTimeout(
+            model.invoke(formattedMessages),
+            config.timeout || this.timeout,
+            'Google generate'
+          );
+          
+          if (!result) {
+            throw new Error('Google API returned undefined response');
+          }
+          
+          return result;
+        } catch (error) {
+          console.error('[Google Provider] Error details:', {
+            error: error instanceof Error ? error.message : String(error),
+            messagesCount: formattedMessages.length,
+            firstMessage: formattedMessages[0],
+          });
+          throw error;
+        }
       },
       'Google generate'
     );
@@ -92,8 +97,21 @@ export class GoogleProvider extends BaseLLMProvider {
     const outputTokens = response.usage_metadata?.output_tokens || 0;
     const totalTokens = inputTokens + outputTokens;
 
+    // Handle content - it might be a string or an array of content parts
+    let content: string;
+    if (typeof response.content === 'string') {
+      content = response.content;
+    } else if (Array.isArray(response.content)) {
+      // If it's an array, join the text parts
+      content = response.content
+        .map((part: any) => (typeof part === 'string' ? part : part.text || ''))
+        .join('');
+    } else {
+      content = String(response.content || '');
+    }
+
     return {
-      content: response.content as string,
+      content,
       tokensUsed: {
         input: inputTokens,
         output: outputTokens,
@@ -116,7 +134,15 @@ export class GoogleProvider extends BaseLLMProvider {
       streaming: true,
     });
 
-    const formattedMessages = messages.map((msg) => [msg.role, msg.content] as [string, string]);
+    // Convert to LangChain message format
+    const formattedMessages = messages.map((msg) => {
+      if (msg.role === 'system' || msg.role === 'user') {
+        return { role: 'human', content: msg.content };
+      } else if (msg.role === 'assistant') {
+        return { role: 'ai', content: msg.content };
+      }
+      return { role: 'human', content: msg.content };
+    });
     
     const stream = await this.withRetry(
       async () => model.stream(formattedMessages),

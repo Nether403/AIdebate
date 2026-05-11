@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Trophy, Plus, BookOpen } from 'lucide-react'
+import { Home, Plus } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 
 export function Navigation() {
@@ -10,15 +10,8 @@ export function Navigation() {
 
   const links = [
     { href: '/', label: 'Home', icon: Home },
-    { href: '/debate/new', label: 'New Debate', icon: Plus },
-    { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-    { href: '/debate/example', label: 'Example', icon: BookOpen },
+    { href: '/debate/new', label: 'New Run', icon: Plus },
   ]
-
-  // Add showcase link in development
-  if (process.env.NODE_ENV === 'development') {
-    links.push({ href: '/components-showcase', label: 'Components', icon: BookOpen })
-  }
 
   return (
     <nav className="border-b border-slate-700 bg-slate-900/95 dark:bg-slate-900/95 backdrop-blur supports-[backdrop-filter]:bg-slate-900/75 sticky top-0 z-50">
@@ -30,7 +23,7 @@ export function Navigation() {
               <span className="text-white font-bold text-xs sm:text-sm">AI</span>
             </div>
             <span className="text-white font-semibold text-base sm:text-lg hidden xs:block">
-              Debate Arena
+              AI Debate Workbench
             </span>
           </Link>
 

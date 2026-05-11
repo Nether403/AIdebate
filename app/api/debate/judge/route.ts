@@ -9,16 +9,16 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db/client'
-import { debates, debateEvaluations, models } from '@/lib/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { debates, debateEvaluations } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { validateRequest, judgeRequestSchema } from '@/lib/middleware/validation'
 import { rateLimitMiddleware, RATE_LIMITS } from '@/lib/middleware/rate-limit'
-import { distributePayout } from '@/lib/prediction/market'
-
-// Note: Judge agent implementation will be imported when available
-// import { JudgeAgent } from '@/lib/agents/judge'
+import { JudgeAgent, JudgeParseError } from '@/lib/agents/judge'
+import { persistConsensusVerdict } from '@/lib/debate/executor'
 
 export async function POST(request: NextRequest) {
+  let requestedDebateId: string | undefined
+
   try {
     // Apply rate limiting
     const rateLimitResponse = await rateLimitMiddleware(request, RATE_LIMITS.api)
@@ -33,8 +33,9 @@ export async function POST(request: NextRequest) {
     }
     
     const { debateId, judgeModel } = validation.data
+    requestedDebateId = debateId
     
-    // Check if debate exists and is completed
+    // Check if debate exists and has a completed transcript
     const debate = await db.query.debates.findFirst({
       where: eq(debates.id, debateId),
       with: {
@@ -42,6 +43,8 @@ export async function POST(request: NextRequest) {
           orderBy: (turns, { asc }) => [asc(turns.roundNumber), asc(turns.createdAt)],
         },
         topic: true,
+        proModel: true,
+        conModel: true,
       },
     })
     
@@ -52,10 +55,10 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
     
-    if (debate.status !== 'completed') {
+    if (!['completed', 'evaluation_failed'].includes(debate.status)) {
       return NextResponse.json({
         error: 'Debate not completed',
-        message: 'Can only judge completed debates',
+        message: 'Can only judge debates with a completed transcript',
       }, { status: 400 })
     }
     
@@ -77,109 +80,73 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
     
-    // TODO: Implement actual judge evaluation
-    // For now, return a placeholder response
-    // When judge agent is implemented:
-    // const judge = new JudgeAgent(judgeModel || 'gemini-3.0-pro')
-    // const evaluation = await judge.evaluateDebate(debate)
-    
-    // Placeholder evaluation
-    const placeholderEvaluation = {
-      judgeModel: judgeModel || 'gemini-3.0-pro',
-      evaluationOrder: 'pro_first',
-      winner: 'pro' as const,
-      proScore: 7.5,
-      conScore: 6.8,
-      reasoning: 'Judge evaluation will be implemented when judge agent is available.',
-      rubricScores: {
-        logicalCoherence: { pro: 8, con: 7 },
-        rebuttalStrength: { pro: 7, con: 6 },
-        factuality: { pro: 8, con: 7 },
+    const judgeProvider = (debate.judgeProvider || 'openai') as 'openai' | 'google' | 'anthropic' | 'xai' | 'openrouter'
+    const resolvedJudgeModel = judgeModel || debate.judgeModel || process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini'
+    const judge = new JudgeAgent({
+      provider: judgeProvider,
+      model: resolvedJudgeModel,
+      temperature: 0.3,
+    })
+
+    const toJudgeTurn = (turn: typeof debate.turns[number], side: 'pro' | 'con') => ({
+      id: turn.id,
+      debateId: turn.debateId,
+      roundNumber: turn.roundNumber,
+      side,
+      modelId: turn.modelId,
+      reflection: turn.reflection,
+      critique: turn.critique,
+      speech: turn.speech,
+      wordCount: turn.wordCount,
+      factChecksPassed: turn.factChecksPassed,
+      factChecksFailed: turn.factChecksFailed,
+      wasRejected: turn.wasRejected,
+      retryCount: turn.retryCount,
+      tokensUsed: turn.tokensUsed,
+      latencyMs: turn.latencyMs,
+      createdAt: turn.createdAt,
+    })
+
+    const verdict = await judge.evaluateWithOrderSwap({
+      id: debate.id,
+      topic: debate.topic.motion,
+      pro_turns: debate.turns.filter(t => t.side === 'pro').map(t => toJudgeTurn(t, 'pro')),
+      con_turns: debate.turns.filter(t => t.side === 'con').map(t => toJudgeTurn(t, 'con')),
+      fact_check_summary: {
+        pro_verified: debate.turns.filter(t => t.side === 'pro').reduce((sum, t) => sum + t.factChecksPassed, 0),
+        pro_false: debate.turns.filter(t => t.side === 'pro').reduce((sum, t) => sum + t.factChecksFailed, 0),
+        con_verified: debate.turns.filter(t => t.side === 'con').reduce((sum, t) => sum + t.factChecksPassed, 0),
+        con_false: debate.turns.filter(t => t.side === 'con').reduce((sum, t) => sum + t.factChecksFailed, 0),
       },
-      positionBiasDetected: false,
-    }
-    
-    // Store evaluation
-    const [evaluation] = await db.insert(debateEvaluations).values({
-      debateId,
-      judgeModel: placeholderEvaluation.judgeModel,
-      evaluationOrder: placeholderEvaluation.evaluationOrder,
-      winner: placeholderEvaluation.winner,
-      proScore: placeholderEvaluation.proScore,
-      conScore: placeholderEvaluation.conScore,
-      reasoning: placeholderEvaluation.reasoning,
-      rubricScores: placeholderEvaluation.rubricScores,
-      positionBiasDetected: placeholderEvaluation.positionBiasDetected,
-    }).returning()
-    
-    // Update debate with AI judge winner
+    })
+
+    await persistConsensusVerdict(debateId, verdict, judgeProvider, resolvedJudgeModel, debate.promptVersion)
+
     await db.update(debates)
-      .set({ 
-        aiJudgeWinner: placeholderEvaluation.winner,
-        winner: placeholderEvaluation.winner, // Overall winner
+      .set({
+        status: 'completed',
+        aiJudgeWinner: verdict.final_winner,
+        winner: verdict.final_winner,
+        completedAt: new Date(),
       })
       .where(eq(debates.id, debateId))
-    
-    // Distribute payouts to bettors
-    await distributePayout(debateId, placeholderEvaluation.winner)
-    
-    // Update model statistics
-    if (placeholderEvaluation.winner === 'pro') {
-      await db.update(models)
-        .set({ 
-          wins: sql`${models.wins} + 1`,
-          totalDebates: sql`${models.totalDebates} + 1`,
-        })
-        .where(eq(models.id, debate.proModelId))
-      
-      await db.update(models)
-        .set({ 
-          losses: sql`${models.losses} + 1`,
-          totalDebates: sql`${models.totalDebates} + 1`,
-        })
-        .where(eq(models.id, debate.conModelId))
-    } else if (placeholderEvaluation.winner === 'con') {
-      await db.update(models)
-        .set({ 
-          losses: sql`${models.losses} + 1`,
-          totalDebates: sql`${models.totalDebates} + 1`,
-        })
-        .where(eq(models.id, debate.proModelId))
-      
-      await db.update(models)
-        .set({ 
-          wins: sql`${models.wins} + 1`,
-          totalDebates: sql`${models.totalDebates} + 1`,
-        })
-        .where(eq(models.id, debate.conModelId))
-    } else {
-      // Tie
-      await db.update(models)
-        .set({ 
-          ties: sql`${models.ties} + 1`,
-          totalDebates: sql`${models.totalDebates} + 1`,
-        })
-        .where(eq(models.id, debate.proModelId))
-      
-      await db.update(models)
-        .set({ 
-          ties: sql`${models.ties} + 1`,
-          totalDebates: sql`${models.totalDebates} + 1`,
-        })
-        .where(eq(models.id, debate.conModelId))
-    }
+
+    const evaluation = await db.query.debateEvaluations.findFirst({
+      where: eq(debateEvaluations.debateId, debateId),
+      orderBy: (evaluations, { desc }) => [desc(evaluations.createdAt)],
+    })
     
     return NextResponse.json({
       success: true,
       evaluation: {
-        id: evaluation.id,
-        winner: evaluation.winner,
-        proScore: evaluation.proScore,
-        conScore: evaluation.conScore,
-        reasoning: evaluation.reasoning,
-        rubricScores: evaluation.rubricScores,
-        positionBiasDetected: evaluation.positionBiasDetected,
-        judgeModel: evaluation.judgeModel,
+        id: evaluation?.id,
+        winner: verdict.final_winner,
+        reasoning: evaluation?.reasoning,
+        rubricScores: evaluation?.rubricScores,
+        positionBiasDetected: evaluation?.positionBiasDetected,
+        judgeProvider,
+        judgeModel: resolvedJudgeModel,
+        parseStatus: evaluation?.parseStatus,
       },
       message: 'Debate evaluated successfully',
     }, { status: 201 })
@@ -188,6 +155,38 @@ export async function POST(request: NextRequest) {
     console.error('Error judging debate:', error)
     
     if (error instanceof Error) {
+      if (requestedDebateId) {
+        const isParseError = error instanceof JudgeParseError
+        await db.insert(debateEvaluations).values({
+          debateId: requestedDebateId,
+          judgeProvider: 'unknown',
+          judgeModel: 'unknown',
+          evaluationOrder: isParseError ? error.evaluationOrder : 'consensus',
+          winner: null,
+          proScore: null,
+          conScore: null,
+          reasoning: error.message,
+          rubricScores: {},
+          positionBiasDetected: false,
+          parseStatus: isParseError ? 'parse_failed' : 'error',
+          rawResponse: isParseError ? error.rawResponse : null,
+          errorMessage: error.message,
+          schemaVersion: 'judge-v1',
+        })
+
+        await db.update(debates)
+          .set({
+            status: 'evaluation_failed',
+            errorState: {
+              stage: 'judge',
+              parseStatus: isParseError ? 'parse_failed' : 'error',
+              message: error.message,
+            },
+            completedAt: new Date(),
+          })
+            .where(eq(debates.id, requestedDebateId))
+      }
+
       return NextResponse.json({
         error: 'Judge evaluation failed',
         message: error.message,

@@ -15,6 +15,13 @@
       "when": 1763714282774,
       "tag": "0001_absent_molten_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778453094593,
+      "tag": "0002_melodic_adam_warlock",
+      "breakpoints": true
     }
   ]
 }

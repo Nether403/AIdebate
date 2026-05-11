@@ -10,7 +10,7 @@ export { proDebaterNode, conDebaterNode, streamDebaterTurn, type DebaterTurn } f
 export { factCheckerNode, calculateFactualityScore, type Claim, type FactCheckResult } from './fact-checker'
 export { roundTransitionNode, persistRejectedTurn, calculateDebateStats } from './round-transition'
 
-import { createDebateGraph, type DebateState } from './graph'
+import { compileDebateGraph, type DebateState } from './graph'
 import { validateDebateConfig } from './moderator'
 import type { DebateConfig } from '@/lib/debate/config'
 import { db } from '@/lib/db/client'
@@ -93,7 +93,7 @@ export async function runDebate(
   const initialState = await initializeDebateState(debateId, config)
   
   // Create and compile the graph
-  const graph = createDebateGraph()
+  const graph = compileDebateGraph()
   
   // Run the graph
   const result = await graph.invoke(initialState)
@@ -121,7 +121,7 @@ export async function* streamDebate(
   const initialState = await initializeDebateState(debateId, config)
   
   // Create and compile the graph
-  const graph = createDebateGraph()
+  const graph = compileDebateGraph()
   
   // For now, run the full debate and yield the final state
   // TODO: Implement true streaming with graph.stream() when LangGraph types are fixed

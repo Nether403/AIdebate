@@ -5,7 +5,7 @@
  * cyclic multi-agent orchestration with conditional routing and checkpointing.
  */
 
-import { StateGraph, Annotation, END } from '@langchain/langgraph'
+import { StateGraph, Annotation, END, MemorySaver } from '@langchain/langgraph'
 import type { DebateSide, FactCheckMode } from '@/types'
 import { moderatorNode } from './moderator'
 import { proDebaterNode, conDebaterNode } from './debater'
@@ -63,6 +63,7 @@ export const DebateStateAnnotation = Annotation.Root({
     claim: string
     verdict: 'true' | 'false' | 'unverifiable'
     confidence: number
+    sources?: Array<{ url: string; snippet: string; title?: string }>
     reasoning: string
   }>>({
     reducer: (current, update) => [...current, ...update],
@@ -95,6 +96,7 @@ export const DebateStateAnnotation = Annotation.Root({
     claim: string
     verdict: 'true' | 'false' | 'unverifiable'
     confidence: number
+    sources?: Array<{ url: string; snippet: string; title?: string }>
     reasoning: string
   }>>({
     reducer: (_, update) => update,
@@ -158,14 +160,13 @@ export function createDebateGraph() {
   graph.addEdge('proDebater' as any, 'factChecker' as any)
   
   // Fact Checker → Conditional routing after Pro's turn
-  // If strict mode and false claim detected, loop back to Pro Debater
-  // Otherwise, continue to Con Debater
+  // If turn is rejected (word limit or false claim), loop back to debater
+  // Otherwise, continue to Con Debater or Round Transition
   graph.addConditionalEdges(
     'factChecker' as any,
     (state: DebateState) => {
-      // Check if we should loop back to Pro
+      // Check if we should loop back to Pro (word limit or fact-check failure)
       if (
-        state.factCheckMode === 'strict' &&
         state.currentSpeaker === 'pro' &&
         state.shouldRejectTurn &&
         state.retryCount < 3
@@ -173,9 +174,8 @@ export function createDebateGraph() {
         return 'loopBackPro'
       }
       
-      // Check if we should loop back to Con
+      // Check if we should loop back to Con (word limit or fact-check failure)
       if (
-        state.factCheckMode === 'strict' &&
         state.currentSpeaker === 'con' &&
         state.shouldRejectTurn &&
         state.retryCount < 3
@@ -183,11 +183,12 @@ export function createDebateGraph() {
         return 'loopBackCon'
       }
       
-      // Check if we should continue to Con or transition
+      // After Pro's turn is accepted, persist it via Round Transition, then continue to Con
       if (state.currentSpeaker === 'pro') {
-        return 'toCon'
+        return 'toTransition' // Go to Round Transition to persist Pro's turn
       }
       
+      // After Con's turn is accepted, persist it via Round Transition
       return 'toTransition'
     },
     {
@@ -202,19 +203,36 @@ export function createDebateGraph() {
   graph.addEdge('conDebater' as any, 'factChecker' as any)
   
   // Round Transition → Conditional routing
-  // If debate is complete, end. Otherwise, continue to next round (moderator)
+  // After Pro's turn: continue to Con
+  // After Con's turn: check if debate is complete or continue to next round
   graph.addConditionalEdges(
     'roundTransition' as any,
     (state: DebateState) => {
+      // If we just persisted Pro's turn, continue to Con
+      if (state.currentSpeaker === 'pro') {
+        return 'toCon'
+      }
+      
+      // If we just persisted Con's turn, check if debate is complete
       return state.isDebateComplete ? 'end' : 'continue'
     },
     {
+      toCon: 'conDebater' as any,
       continue: 'moderator' as any,
       end: END,
     }
   )
   
-  return graph.compile()
+  return graph
+}
+
+/**
+ * Create and compile the debate graph with checkpointer
+ */
+export function compileDebateGraph() {
+  const graph = createDebateGraph()
+  const checkpointer = new MemorySaver()
+  return graph.compile({ checkpointer })
 }
 
 

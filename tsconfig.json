@@ -37,6 +37,13 @@
   ],
   "exclude": [
     "node_modules",
-    "scripts"
+    "scripts",
+    "scripts/archive",
+    "archive",
+    "llm-council-master",
+    "testsprite_tests",
+    "docs/archive",
+    "tests",
+    "**/__tests__/**"
   ]
 }

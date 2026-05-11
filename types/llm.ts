@@ -64,6 +64,10 @@ export interface ModelPricing {
 
 export interface LLMClientOptions {
   apiKey: string;
+  azureOpenAIApiInstanceName?: string;
+  azureOpenAIApiDeploymentName?: string;
+  azureOpenAIApiVersion?: string;
+  azureOpenAIEndpoint?: string;
   retryConfig?: RetryConfig;
   timeout?: number;
 }

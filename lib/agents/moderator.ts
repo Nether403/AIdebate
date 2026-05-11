@@ -28,19 +28,8 @@ export async function moderatorNode(state: DebateState): Promise<Partial<DebateS
   // Generate round announcement
   const announcement = generateRoundAnnouncement(state)
   
-  // Validate previous turn if exists
-  const validationErrors: string[] = []
-  if (state.currentTurnDraft) {
-    const errors = validateTurn(state.currentTurnDraft, state.wordLimitPerTurn)
-    validationErrors.push(...errors)
-  }
-  
   // Log announcement
   console.log(`[Moderator] ${announcement}`)
-  
-  if (validationErrors.length > 0) {
-    console.warn(`[Moderator] Validation errors:`, validationErrors)
-  }
   
   // Reset turn-specific state for new round
   return {
@@ -54,7 +43,6 @@ export async function moderatorNode(state: DebateState): Promise<Partial<DebateS
       lastModeratorAnnouncement: announcement,
       moderatorAnnouncementTime: new Date().toISOString(),
       currentRoundStarted: new Date().toISOString(),
-      validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
     },
   }
 }

@@ -36,18 +36,64 @@ export interface FactCheckResult {
 export async function factCheckerNode(state: DebateState): Promise<Partial<DebateState>> {
   console.log(`[Fact Checker] Checking facts for ${state.currentSpeaker} turn`)
   
-  // Skip fact-checking if mode is 'off'
-  if (state.factCheckMode === 'off') {
-    console.log('[Fact Checker] Fact-checking disabled, skipping')
+  // Get current turn draft
+  if (!state.currentTurnDraft) {
+    console.warn('[Fact Checker] No current turn draft to check')
     return {
       currentFactCheckResults: [],
       shouldRejectTurn: false,
     }
   }
   
-  // Get current turn draft
-  if (!state.currentTurnDraft) {
-    console.warn('[Fact Checker] No current turn draft to check')
+  // FIRST: Validate word count (always enforced, regardless of fact-check mode)
+  const actualWordCount = countWords(state.currentTurnDraft.speech)
+  const wordLimit = state.wordLimitPerTurn
+  
+  if (actualWordCount > wordLimit) {
+    const retryCount = state.retryCount + 1
+    
+    console.warn(`[Fact Checker] Word limit exceeded: ${actualWordCount} words (max: ${wordLimit})`)
+    console.warn(`[Fact Checker] Retry attempt ${retryCount}/3`)
+    
+    // After 3 retries, truncate instead of rejecting
+    if (retryCount >= 3) {
+      console.warn(`[Fact Checker] Max retries reached. Truncating speech to ${wordLimit} words.`)
+      const truncated = truncateToWordLimit(state.currentTurnDraft.speech, wordLimit)
+      
+      return {
+        currentTurnDraft: {
+          ...state.currentTurnDraft,
+          speech: truncated,
+          wordCount: countWords(truncated),
+        },
+        currentFactCheckResults: [],
+        shouldRejectTurn: false,
+        retryCount: 0,
+        metadata: {
+          ...state.metadata,
+          wordLimitEnforced: true,
+          originalWordCount: actualWordCount,
+        },
+      }
+    }
+    
+    // Reject and retry
+    return {
+      currentFactCheckResults: [],
+      shouldRejectTurn: true,
+      retryCount,
+      metadata: {
+        ...state.metadata,
+        wordLimitViolation: true,
+        actualWordCount,
+        wordLimit,
+      },
+    }
+  }
+  
+  // Skip fact-checking if mode is 'off'
+  if (state.factCheckMode === 'off') {
+    console.log('[Fact Checker] Fact-checking disabled, skipping')
     return {
       currentFactCheckResults: [],
       shouldRejectTurn: false,
@@ -88,6 +134,7 @@ export async function factCheckerNode(state: DebateState): Promise<Partial<Debat
         claim: r.claim,
         verdict: r.verdict,
         confidence: r.confidence,
+        sources: r.sources,
         reasoning: r.reasoning,
       })),
       shouldRejectTurn: shouldReject,
@@ -116,7 +163,7 @@ async function extractClaims(text: string): Promise<Claim[]> {
   
   const config: LLMConfig = {
     provider: 'openai',
-    model: 'gpt-4o-mini', // Use cheaper model for claim extraction
+    model: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
     temperature: 0.3,
     maxTokens: 1000,
   }
@@ -237,6 +284,7 @@ async function searchTavily(query: string): Promise<Array<{ url: string; snippet
 
 /**
  * Analyze evidence and determine verdict using LLM
+ * Uses the configured Azure OpenAI deployment for high precision
  */
 async function analyzeEvidence(
   claim: Claim,
@@ -244,9 +292,13 @@ async function analyzeEvidence(
 ): Promise<FactCheckResult> {
   const llmClient = getLLMClient()
   
+  // Import model config
+  const { getModelConfig } = require('@/lib/llm/model-config')
+  const factCheckerConfig = getModelConfig('fact-checker')
+  
   const config: LLMConfig = {
-    provider: 'openai',
-    model: 'gpt-5.1', // Use more capable model for reasoning
+    provider: factCheckerConfig.provider,
+    model: factCheckerConfig.model,
     temperature: 0.2,
     maxTokens: 500,
   }
@@ -332,5 +384,30 @@ export function calculateFactualityScore(results: FactCheckResult[]): number {
   }
   
   return trueCount / totalVerifiable
+}
+
+/**
+ * Count words in text
+ */
+function countWords(text: string): number {
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter(word => word.length > 0)
+    .length
+}
+
+/**
+ * Truncate text to word limit
+ */
+function truncateToWordLimit(text: string, wordLimit: number): string {
+  const words = text.trim().split(/\s+/)
+  
+  if (words.length <= wordLimit) {
+    return text
+  }
+  
+  // Truncate to word limit and add ellipsis
+  return words.slice(0, wordLimit).join(' ') + '...'
 }
 

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const [inProgressDebates] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(debates)
-      .where(eq(debates.status, 'in_progress'))
+      .where(eq(debates.status, 'running'))
     
     const [failedDebates] = await db
       .select({ count: sql<number>`count(*)::int` })

@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 desktop.ini
+llm-council-master/
+Binder101.pdf
+debateround1.txt
 
 # debug
 npm-debug.log*
@@ -47,3 +50,5 @@ next-env.d.ts
 
 # archive (old prototype)
 /archive
+/docs/archive/
+/scripts/archive/

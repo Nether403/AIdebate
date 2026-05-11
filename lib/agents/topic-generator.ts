@@ -34,7 +34,7 @@ export interface BalanceValidationResult {
 
 const DEFAULT_LLM_CONFIG: LLMConfig = {
   provider: 'openai',
-  model: 'gpt-4o-mini',
+  model: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
   temperature: 0.9, // Higher temperature for creative topic generation
   maxTokens: 2000,
 };

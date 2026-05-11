@@ -93,15 +93,14 @@ async function generateDebaterTurn(
   // Generate RCR prompt
   const prompt = generateRCRPrompt(state, side, persona, opponentLastTurn)
   
-  // Call LLM
+  // Call LLM using OpenRouter for all debater models
   const llmClient = getLLMClient()
+  const { getDebaterLLMConfig } = require('@/lib/llm/debater-models')
   
-  const config: LLMConfig = {
-    provider: model.provider as any,
-    model: model.modelId,
+  const config: LLMConfig = getDebaterLLMConfig(model.modelId, {
     temperature: 0.7,
     maxTokens: 2000,
-  }
+  })
   
   try {
     const response = await llmClient.generate(
@@ -152,12 +151,30 @@ function generateRCRPrompt(
   
   systemPrompt += `You are a skilled debater arguing ${position} the motion: "${state.topicMotion}"`
   
+  // Add retry feedback if this is a retry
+  let retryFeedback = ''
+  if (state.retryCount > 0) {
+    const metadata = state.metadata as any
+    if (metadata?.wordLimitViolation) {
+      retryFeedback = `
+⚠️ RETRY ${state.retryCount}/3: Your previous response exceeded the word limit!
+- You wrote: ${metadata.actualWordCount} words
+- Maximum allowed: ${metadata.wordLimit} words
+- You MUST reduce your speech to ${metadata.wordLimit} words or less.
+- This is attempt ${state.retryCount} of 3. After 3 attempts, your speech will be truncated.
+
+`
+    }
+  }
+  
   let userPrompt = `
+${retryFeedback}🚨 CRITICAL CONSTRAINT: Your speech MUST be ${state.wordLimitPerTurn} words or less! 🚨
+
 DEBATE CONTEXT:
 - Motion: "${state.topicMotion}"
 - Your Position: ${position}
 - Round: ${state.currentRound} of ${state.totalRounds} (${roundType})
-- Word Limit: ${state.wordLimitPerTurn} words
+- STRICT Word Limit: ${state.wordLimitPerTurn} words maximum
 
 `
   
@@ -199,16 +216,21 @@ Output your critique in <critique> tags.
 PHASE 3 - REFINEMENT:
 Construct your ${roundType.toLowerCase()} argument.
 Output your speech in <speech> tags.
+
+🚨 WORD LIMIT: ${state.wordLimitPerTurn} words MAXIMUM - This will be strictly enforced! 🚨
+
+Content requirements:
 - ${state.currentRound === 1 ? 'Present your opening argument with clear thesis and supporting evidence' : 'Address your opponent\'s strongest points directly'}
 - Provide counter-evidence and reasoning
 - ${state.currentRound === state.totalRounds ? 'Summarize your key points and make a compelling closing statement' : 'Build your case systematically'}
-- Stay within ${state.wordLimitPerTurn} words
 ${persona ? `- Maintain your persona's voice and style: ${persona.description}` : ''}
 - Focus on logical argumentation, not personal attacks
 - Be persuasive and compelling
 
-CONSTRAINTS:
-- Your speech MUST be between 200 and ${state.wordLimitPerTurn} words
+STRICT CONSTRAINTS:
+- ⚠️ Your speech MUST be between 200 and ${state.wordLimitPerTurn} words
+- ⚠️ Count your words carefully before submitting
+- ⚠️ If you exceed ${state.wordLimitPerTurn} words, your response will be REJECTED
 - Use clear, structured arguments
 - Cite specific evidence when possible
 - Maintain a professional, respectful tone
