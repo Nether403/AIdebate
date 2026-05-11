@@ -9,6 +9,8 @@ import { getLLMClient } from '@/lib/llm/client'
 import type { DebateState } from './graph'
 import type { FactCheckVerdict } from '@/types'
 import type { LLMConfig } from '@/types/llm'
+import { getModelConfig } from '@/lib/llm/model-config'
+import { recordLLMProviderCall } from '@/lib/llm/telemetry'
 
 export interface Claim {
   text: string
@@ -104,7 +106,7 @@ export async function factCheckerNode(state: DebateState): Promise<Partial<Debat
   
   try {
     // Extract claims from speech
-    const claims = await extractClaims(speech)
+    const claims = await extractClaims(speech, state.debateId)
     
     console.log(`[Fact Checker] Extracted ${claims.length} claims`)
     
@@ -113,7 +115,7 @@ export async function factCheckerNode(state: DebateState): Promise<Partial<Debat
     let hasFalseClaim = false
     
     for (const claim of claims) {
-      const result = await verifyClaim(claim)
+      const result = await verifyClaim(claim, state.debateId)
       results.push(result)
       
       if (result.verdict === 'false') {
@@ -158,12 +160,13 @@ export async function factCheckerNode(state: DebateState): Promise<Partial<Debat
 /**
  * Extract verifiable claims from text using LLM
  */
-async function extractClaims(text: string): Promise<Claim[]> {
+async function extractClaims(text: string, debateId?: string): Promise<Claim[]> {
   const llmClient = getLLMClient()
-  
+  const factCheckerConfig = getModelConfig('fact-checker')
+
   const config: LLMConfig = {
-    provider: 'openai',
-    model: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
+    provider: factCheckerConfig.provider,
+    model: factCheckerConfig.model,
     temperature: 0.3,
     maxTokens: 1000,
   }
@@ -197,6 +200,14 @@ If no verifiable claims are found, return an empty array: []
       [{ role: 'user', content: prompt }],
       config
     )
+
+    await recordLLMProviderCall({
+      debateId,
+      stage: 'fact-check-claim-extraction',
+      config,
+      response,
+      promptVersion: 'fact-check-v1',
+    })
     
     // Parse JSON response
     const jsonMatch = response.content.match(/\[[\s\S]*\]/)
@@ -210,6 +221,14 @@ If no verifiable claims are found, return an empty array: []
     // Limit to top 5 claims to avoid excessive API calls
     return claims.slice(0, 5)
   } catch (error) {
+    await recordLLMProviderCall({
+      debateId,
+      stage: 'fact-check-claim-extraction',
+      config,
+      promptVersion: 'fact-check-v1',
+      status: 'error',
+      error,
+    })
     console.error('[Fact Checker] Error extracting claims:', error)
     return []
   }
@@ -218,7 +237,7 @@ If no verifiable claims are found, return an empty array: []
 /**
  * Verify a claim using Tavily Search API and LLM reasoning
  */
-async function verifyClaim(claim: Claim): Promise<FactCheckResult> {
+async function verifyClaim(claim: Claim, debateId?: string): Promise<FactCheckResult> {
   // Search for evidence using Tavily
   const searchResults = await searchTavily(claim.text)
   
@@ -233,7 +252,7 @@ async function verifyClaim(claim: Claim): Promise<FactCheckResult> {
   }
   
   // Use LLM to analyze search results and determine verdict
-  const verdict = await analyzeEvidence(claim, searchResults)
+  const verdict = await analyzeEvidence(claim, searchResults, debateId)
   
   return verdict
 }
@@ -288,12 +307,10 @@ async function searchTavily(query: string): Promise<Array<{ url: string; snippet
  */
 async function analyzeEvidence(
   claim: Claim,
-  searchResults: Array<{ url: string; snippet: string; title?: string }>
+  searchResults: Array<{ url: string; snippet: string; title?: string }>,
+  debateId?: string
 ): Promise<FactCheckResult> {
   const llmClient = getLLMClient()
-  
-  // Import model config
-  const { getModelConfig } = require('@/lib/llm/model-config')
   const factCheckerConfig = getModelConfig('fact-checker')
   
   const config: LLMConfig = {
@@ -337,6 +354,14 @@ OUTPUT FORMAT (JSON):
       [{ role: 'user', content: prompt }],
       config
     )
+
+    await recordLLMProviderCall({
+      debateId,
+      stage: 'fact-check-evidence-analysis',
+      config,
+      response,
+      promptVersion: 'fact-check-v1',
+    })
     
     // Parse JSON response
     const jsonMatch = response.content.match(/\{[\s\S]*\}/)
@@ -354,6 +379,14 @@ OUTPUT FORMAT (JSON):
       reasoning: analysis.reasoning,
     }
   } catch (error) {
+    await recordLLMProviderCall({
+      debateId,
+      stage: 'fact-check-evidence-analysis',
+      config,
+      promptVersion: 'fact-check-v1',
+      status: 'error',
+      error,
+    })
     console.error('[Fact Checker] Error analyzing evidence:', error)
     
     // Fallback to unverifiable

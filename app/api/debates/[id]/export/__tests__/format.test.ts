@@ -7,11 +7,14 @@ describe('formatDebateExport', () => {
     const exportedAt = new Date('2026-05-11T12:00:00.000Z')
     const debate = {
       id: 'debate-export-1',
+      benchmarkRunId: 'benchmark-run-1',
       status: 'evaluation_failed',
       topic: {
         motion: 'Resolved: failed judge evaluations should remain inspectable.',
         category: 'methodology',
         difficulty: 'medium',
+        source: 'curated',
+        sourceMetadata: { collection: 'unit-test' },
       },
       proModel: {
         name: 'Pro Model',
@@ -62,6 +65,9 @@ describe('formatDebateExport', () => {
           wordCount: 8,
           tokensUsed: 20,
           latencyMs: 1200,
+          provider: 'openai',
+          actualModelId: 'gpt-pro-actual',
+          costEstimate: 0.0012,
           wasRejected: false,
           retryCount: 0,
           factChecks: [
@@ -103,11 +109,31 @@ describe('formatDebateExport', () => {
           createdAt: new Date('2026-05-11T11:05:00.000Z'),
         },
       ],
+      llmProviderCalls: [
+        {
+          stage: 'debater-pro',
+          provider: 'openai',
+          requestedModel: 'gpt-pro',
+          actualModel: 'gpt-pro-actual',
+          promptVersion: 'prompt-v1',
+          generationParams: { temperature: 0.7 },
+          inputTokens: 10,
+          outputTokens: 10,
+          totalTokens: 20,
+          latencyMs: 1200,
+          costEstimate: 0.0012,
+          status: 'success',
+          errorMessage: null,
+          createdAt: new Date('2026-05-11T11:02:00.000Z'),
+        },
+      ],
     }
 
     const exportData = formatDebateExport(debate, exportedAt)
 
     assert.strictEqual(exportData.debate.status, 'evaluation_failed')
+    assert.strictEqual(exportData.debate.benchmarkRunId, 'benchmark-run-1')
+    assert.strictEqual(exportData.debate.topic.source, 'curated')
     assert.deepStrictEqual(exportData.debate.results.errorState, debate.errorState)
     assert.deepStrictEqual(exportData.debate.configuration.judge, {
       provider: 'google',
@@ -117,6 +143,10 @@ describe('formatDebateExport', () => {
     assert.strictEqual(exportData.evaluations[0].rawResponse, 'not-json')
     assert.strictEqual(exportData.evaluations[0].errorMessage, 'Unable to parse judge response: Unexpected token')
     assert.strictEqual(exportData.evaluations[0].schemaVersion, 'judge-v1')
+    assert.strictEqual(exportData.transcript[0].metadata.provider, 'openai')
+    assert.strictEqual(exportData.transcript[0].metadata.actualModelId, 'gpt-pro-actual')
+    assert.strictEqual(exportData.providerCalls[0].stage, 'debater-pro')
+    assert.strictEqual(exportData.providerCalls[0].tokenUsage.total, 20)
     assert.deepStrictEqual(exportData.transcript[0].factChecks[0].sources, debate.turns[0].factChecks[0].sources)
     assert.strictEqual(exportData.exportMetadata.exportedAt, '2026-05-11T12:00:00.000Z')
   })

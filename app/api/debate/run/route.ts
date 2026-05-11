@@ -12,8 +12,6 @@ import { createDebateEngine } from '@/lib/debate/engine'
 import { validateDebateConfig } from '@/lib/debate/config'
 import { validateRequest, debateConfigSchema } from '@/lib/middleware/validation'
 import { rateLimitMiddleware, RATE_LIMITS } from '@/lib/middleware/rate-limit'
-import { costGuardMiddleware } from '@/lib/middleware/cost-guard'
-import { logCost } from '@/lib/security/cost-monitoring'
 import { executeDebate } from '@/lib/debate/executor'
 
 export async function POST(request: NextRequest) {
@@ -41,17 +39,6 @@ export async function POST(request: NextRequest) {
         message: 'The debate configuration is invalid',
         details: configValidation.errors || [],
       }, { status: 400 })
-    }
-    
-    // Check spending cap before creating debate
-    const costGuardResponse = await costGuardMiddleware({
-      rounds: configValidation.data.totalRounds || 3,
-      factCheckingEnabled: configValidation.data.factCheckMode !== 'off',
-      judgeModel: 'gemini-3.0-pro', // Default judge model
-    })
-    
-    if (costGuardResponse) {
-      return costGuardResponse
     }
     
     // Initialize debate

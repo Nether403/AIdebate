@@ -30,12 +30,55 @@ export const topics = pgTable('topics', {
   motion: text('motion').notNull(),
   category: text('category').notNull(), // 'technology', 'ethics', 'politics', 'science', etc.
   difficulty: text('difficulty').notNull(), // 'easy', 'medium', 'hard'
+  source: text('source').default('curated').notNull(), // 'curated', 'generated', imported dataset name, etc.
+  sourceMetadata: jsonb('source_metadata'),
   isActive: boolean('is_active').default(true).notNull(),
   usageCount: integer('usage_count').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   categoryIdx: index('topics_category_idx').on(table.category),
   difficultyIdx: index('topics_difficulty_idx').on(table.difficulty),
+}))
+
+// Topic sets table - curated groups of topics for reproducible benchmarks
+export const topicSets = pgTable('topic_sets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  version: text('version').default('v1').notNull(),
+  source: text('source').default('curated').notNull(),
+  metadata: jsonb('metadata'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  nameVersionIdx: uniqueIndex('topic_sets_name_version_idx').on(table.name, table.version),
+  activeIdx: index('topic_sets_active_idx').on(table.isActive),
+}))
+
+export const topicSetTopics = pgTable('topic_set_topics', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicSetId: uuid('topic_set_id').references(() => topicSets.id, { onDelete: 'cascade' }).notNull(),
+  topicId: uuid('topic_id').references(() => topics.id, { onDelete: 'cascade' }).notNull(),
+  position: integer('position').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  setIdx: index('topic_set_topics_set_idx').on(table.topicSetId),
+  topicIdx: index('topic_set_topics_topic_idx').on(table.topicId),
+  uniqueMembership: uniqueIndex('topic_set_topics_unique_idx').on(table.topicSetId, table.topicId),
+}))
+
+// Prompt templates table - prompt version registry for reproducibility
+export const promptTemplates = pgTable('prompt_templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  templateId: text('template_id').notNull(),
+  version: text('version').notNull(),
+  role: text('role').notNull(), // 'debater', 'judge', 'fact-checker', 'moderator'
+  content: text('content').notNull(),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  templateVersionIdx: uniqueIndex('prompt_templates_template_version_idx').on(table.templateId, table.version),
+  roleIdx: index('prompt_templates_role_idx').on(table.role),
 }))
 
 // Personas table - stores debate personas
@@ -68,6 +111,22 @@ export const benchmarkRuns = pgTable('benchmark_runs', {
 }, (table) => ({
   statusIdx: index('benchmark_runs_status_idx').on(table.status),
   createdAtIdx: index('benchmark_runs_created_at_idx').on(table.createdAt),
+}))
+
+// Model snapshots table - immutable-ish provider/model metadata captured per run
+export const modelSnapshots = pgTable('model_snapshots', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  benchmarkRunId: uuid('benchmark_run_id').references(() => benchmarkRuns.id, { onDelete: 'cascade' }),
+  modelId: uuid('model_id').references(() => models.id, { onDelete: 'set null' }),
+  provider: text('provider').notNull(),
+  providerModelId: text('provider_model_id').notNull(),
+  displayName: text('display_name'),
+  role: text('role').notNull(), // 'pro', 'con', 'judge', 'fact-checker', etc.
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  runIdx: index('model_snapshots_run_idx').on(table.benchmarkRunId),
+  providerModelIdx: index('model_snapshots_provider_model_idx').on(table.provider, table.providerModelId),
 }))
 
 // Debates table - stores debate sessions
@@ -126,10 +185,40 @@ export const debateTurns = pgTable('debate_turns', {
   retryCount: integer('retry_count').default(0).notNull(),
   tokensUsed: integer('tokens_used'),
   latencyMs: integer('latency_ms'),
+  provider: text('provider'),
+  actualModelId: text('actual_model_id'),
+  costEstimate: real('cost_estimate'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   debateIdx: index('debate_turns_debate_idx').on(table.debateId),
   roundIdx: index('debate_turns_round_idx').on(table.roundNumber),
+  acceptedTurnLookup: index('debate_turns_accepted_lookup_idx').on(table.debateId, table.roundNumber, table.side, table.wasRejected),
+}))
+
+// Durable LLM provider calls for artifact diagnostics and cost accounting
+export const llmProviderCalls = pgTable('llm_provider_calls', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  debateId: uuid('debate_id').references(() => debates.id, { onDelete: 'cascade' }),
+  debateTurnId: uuid('debate_turn_id').references(() => debateTurns.id, { onDelete: 'set null' }),
+  benchmarkRunId: uuid('benchmark_run_id').references(() => benchmarkRuns.id, { onDelete: 'set null' }),
+  stage: text('stage').notNull(), // 'debater', 'claim-extraction', 'fact-checker', 'judge', 'tiebreaker'
+  provider: text('provider').notNull(),
+  requestedModel: text('requested_model').notNull(),
+  actualModel: text('actual_model'),
+  promptVersion: text('prompt_version'),
+  generationParams: jsonb('generation_params'),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  totalTokens: integer('total_tokens'),
+  latencyMs: integer('latency_ms'),
+  costEstimate: real('cost_estimate'),
+  status: text('status').default('success').notNull(), // 'success' or 'error'
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  debateIdx: index('llm_provider_calls_debate_idx').on(table.debateId),
+  benchmarkRunIdx: index('llm_provider_calls_benchmark_run_idx').on(table.benchmarkRunId),
+  stageIdx: index('llm_provider_calls_stage_idx').on(table.stage),
 }))
 
 // Fact checks table - stores fact-checking results
@@ -171,6 +260,21 @@ export const debateEvaluations = pgTable('debate_evaluations', {
 }, (table) => ({
   debateIdx: index('debate_evaluations_debate_idx').on(table.debateId),
   winnerIdx: index('debate_evaluations_winner_idx').on(table.winner),
+}))
+
+// Dataset exports table - manifest registry for benchmark exports
+export const datasetExports = pgTable('dataset_exports', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  benchmarkRunId: uuid('benchmark_run_id').references(() => benchmarkRuns.id, { onDelete: 'cascade' }),
+  debateId: uuid('debate_id').references(() => debates.id, { onDelete: 'cascade' }),
+  format: text('format').notNull(), // 'json', 'jsonl', 'csv'
+  outputPath: text('output_path').notNull(),
+  manifest: jsonb('manifest').notNull(),
+  rowCount: integer('row_count').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  runIdx: index('dataset_exports_run_idx').on(table.benchmarkRunId),
+  debateIdx: index('dataset_exports_debate_idx').on(table.debateId),
 }))
 
 // User profiles table - stores user statistics and DebatePoints
@@ -237,10 +341,27 @@ export const modelsRelations = relations(models, ({ many }) => ({
   conDebates: many(debates, { relationName: 'conModel' }),
   turns: many(debateTurns),
   ratings: many(modelRatings),
+  snapshots: many(modelSnapshots),
 }))
 
 export const topicsRelations = relations(topics, ({ many }) => ({
   debates: many(debates),
+  topicSetMemberships: many(topicSetTopics),
+}))
+
+export const topicSetsRelations = relations(topicSets, ({ many }) => ({
+  topics: many(topicSetTopics),
+}))
+
+export const topicSetTopicsRelations = relations(topicSetTopics, ({ one }) => ({
+  topicSet: one(topicSets, {
+    fields: [topicSetTopics.topicSetId],
+    references: [topicSets.id],
+  }),
+  topic: one(topics, {
+    fields: [topicSetTopics.topicId],
+    references: [topics.id],
+  }),
 }))
 
 export const personasRelations = relations(personas, ({ many }) => ({
@@ -250,6 +371,20 @@ export const personasRelations = relations(personas, ({ many }) => ({
 
 export const benchmarkRunsRelations = relations(benchmarkRuns, ({ many }) => ({
   debates: many(debates),
+  modelSnapshots: many(modelSnapshots),
+  llmProviderCalls: many(llmProviderCalls),
+  datasetExports: many(datasetExports),
+}))
+
+export const modelSnapshotsRelations = relations(modelSnapshots, ({ one }) => ({
+  benchmarkRun: one(benchmarkRuns, {
+    fields: [modelSnapshots.benchmarkRunId],
+    references: [benchmarkRuns.id],
+  }),
+  model: one(models, {
+    fields: [modelSnapshots.modelId],
+    references: [models.id],
+  }),
 }))
 
 export const debatesRelations = relations(debates, ({ one, many }) => ({
@@ -283,6 +418,8 @@ export const debatesRelations = relations(debates, ({ one, many }) => ({
   }),
   turns: many(debateTurns),
   evaluations: many(debateEvaluations),
+  llmProviderCalls: many(llmProviderCalls),
+  datasetExports: many(datasetExports),
   votes: many(userVotes),
 }))
 
@@ -296,6 +433,22 @@ export const debateTurnsRelations = relations(debateTurns, ({ one, many }) => ({
     references: [models.id],
   }),
   factChecks: many(factChecks),
+  llmProviderCalls: many(llmProviderCalls),
+}))
+
+export const llmProviderCallsRelations = relations(llmProviderCalls, ({ one }) => ({
+  debate: one(debates, {
+    fields: [llmProviderCalls.debateId],
+    references: [debates.id],
+  }),
+  debateTurn: one(debateTurns, {
+    fields: [llmProviderCalls.debateTurnId],
+    references: [debateTurns.id],
+  }),
+  benchmarkRun: one(benchmarkRuns, {
+    fields: [llmProviderCalls.benchmarkRunId],
+    references: [benchmarkRuns.id],
+  }),
 }))
 
 export const factChecksRelations = relations(factChecks, ({ one }) => ({
@@ -308,6 +461,17 @@ export const factChecksRelations = relations(factChecks, ({ one }) => ({
 export const debateEvaluationsRelations = relations(debateEvaluations, ({ one }) => ({
   debate: one(debates, {
     fields: [debateEvaluations.debateId],
+    references: [debates.id],
+  }),
+}))
+
+export const datasetExportsRelations = relations(datasetExports, ({ one }) => ({
+  benchmarkRun: one(benchmarkRuns, {
+    fields: [datasetExports.benchmarkRunId],
+    references: [benchmarkRuns.id],
+  }),
+  debate: one(debates, {
+    fields: [datasetExports.debateId],
     references: [debates.id],
   }),
 }))

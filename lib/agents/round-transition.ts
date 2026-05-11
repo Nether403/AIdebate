@@ -6,7 +6,7 @@
 
 import { db } from '@/lib/db/client'
 import { debateTurns, factChecks, debates } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { DebateState } from './graph'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -129,6 +129,20 @@ async function persistTurn(state: DebateState): Promise<string> {
   console.log(`[Round Transition] Persisting ${side} turn for round ${state.currentRound}`)
   
   try {
+    const existingTurn = await db.query.debateTurns.findFirst({
+      where: and(
+        eq(debateTurns.debateId, state.debateId),
+        eq(debateTurns.roundNumber, state.currentRound),
+        eq(debateTurns.side, side),
+        eq(debateTurns.wasRejected, false)
+      ),
+    })
+
+    if (existingTurn) {
+      console.warn(`[Round Transition] Accepted ${side} turn already exists for debate ${state.debateId} round ${state.currentRound}; skipping duplicate persistence`)
+      return existingTurn.id
+    }
+
     // Calculate fact-check stats
     const factChecksPassed = state.currentFactCheckResults.filter(
       r => r.verdict === 'true'
@@ -153,8 +167,11 @@ async function persistTurn(state: DebateState): Promise<string> {
       factChecksFailed,
       wasRejected: false,
       retryCount: state.retryCount,
-      tokensUsed: null, // Will be updated if available
-      latencyMs: null, // Will be updated if available
+      tokensUsed: turn.tokensUsed || null,
+      latencyMs: turn.latencyMs || null,
+      provider: turn.provider || null,
+      actualModelId: turn.actualModelId || null,
+      costEstimate: turn.costEstimate || null,
     }).returning()
     
     // Insert fact-check results
@@ -214,8 +231,11 @@ export async function persistRejectedTurn(state: DebateState): Promise<void> {
       factChecksFailed,
       wasRejected: true,
       retryCount: state.retryCount,
-      tokensUsed: null,
-      latencyMs: null,
+      tokensUsed: turn.tokensUsed || null,
+      latencyMs: turn.latencyMs || null,
+      provider: turn.provider || null,
+      actualModelId: turn.actualModelId || null,
+      costEstimate: turn.costEstimate || null,
     })
   } catch (error) {
     console.error('[Round Transition] Error persisting rejected turn:', error)

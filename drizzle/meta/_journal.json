@@ -29,6 +29,13 @@
       "when": 1778488249093,
       "tag": "0004_sleepy_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778513791758,
+      "tag": "0004_safe_nighthawk",
+      "breakpoints": true
     }
   ]
 }

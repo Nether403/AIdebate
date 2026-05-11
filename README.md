@@ -70,6 +70,32 @@ npm run lint
 npm test
 ```
 
+## Benchmark Commands
+
+Run one debate from a JSON config:
+
+```bash
+npm run debate:run -- --config configs/debate.json
+```
+
+Run a benchmark config:
+
+```bash
+npm run benchmark:run -- --config configs/frontier-smoke.example.json
+```
+
+Export a completed debate:
+
+```bash
+npm run debate:export -- --debate <debateId> --out exports/<debateId>.json
+```
+
+Export completed debates from a benchmark run as JSONL plus manifest:
+
+```bash
+npm run dataset:export -- --run <benchmarkRunId> --out exports/<benchmarkRunId>
+```
+
 Live-provider checks are intentionally separate:
 
 ```bash
@@ -82,7 +108,13 @@ npm run test:live
 - `docs/PROJECT_STATE.md`: current known repo status.
 - `docs/RESEARCH_GOALS.md`: research purpose and boundaries.
 - `docs/BENCHMARK_METHODOLOGY.md`: benchmark loop and evaluation framing.
+- `docs/DATA_SCHEMA.md`: active artifact, benchmark, telemetry, and export schema.
+- `docs/PHASE_1_CLEANUP.md`: archived product-era surfaces and restore policy.
 - `docs/KNOWN_LIMITATIONS.md`: caveats and current risks.
+
+## Archived Product-Era Code
+
+Prediction-market, DebatePoints, leaderboard, betting, public-sharing, and other consumer-product surfaces have been archived under `archive/product-era/` for reference. They are out of scope for the revival MVP unless `docs/REVIVAL_ROADMAP.md` is explicitly changed.
 
 ## Working Rule
 

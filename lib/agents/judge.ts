@@ -6,6 +6,38 @@
 import { getLLMClient } from '@/lib/llm/client';
 import type { LLMConfig, LLMMessage } from '@/types/llm';
 import type { DebateTurn, DebateWinner, EvaluationOrder } from '@/types';
+import { z } from 'zod';
+
+const logicalFallacySchema = z.object({
+  type: z.enum([
+    'ad_hominem',
+    'strawman',
+    'false_dichotomy',
+    'appeal_to_authority',
+    'slippery_slope',
+    'circular_reasoning',
+    'hasty_generalization',
+    'red_herring',
+    'appeal_to_emotion',
+    'false_cause',
+    'bandwagon',
+    'tu_quoque',
+  ]),
+  description: z.string(),
+  location: z.string(),
+  severity: z.enum(['minor', 'moderate', 'severe']),
+});
+
+const judgeResponseSchema = z.object({
+  winner: z.enum(['pro', 'con', 'tie']),
+  scores: z.object({
+    logical_coherence: z.number().min(1).max(10),
+    rebuttal_strength: z.number().min(1).max(10),
+    factuality: z.number().min(1).max(10),
+  }),
+  justification: z.string().min(100),
+  flagged_fallacies: z.array(logicalFallacySchema).default([]),
+});
 
 // Logical fallacy types
 export type FallacyType =
@@ -374,43 +406,8 @@ Provide your evaluation now:`;
         jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '');
       }
 
-      const parsed = JSON.parse(jsonStr);
-
-      // Validate required fields
-      if (!parsed.winner || !parsed.scores || !parsed.justification) {
-        throw new Error('Missing required fields in judge response');
-      }
-
-      // Validate winner value
-      if (!['pro', 'con', 'tie'].includes(parsed.winner)) {
-        throw new Error(`Invalid winner value: ${parsed.winner}`);
-      }
-
-      // Validate scores
+      const parsed = judgeResponseSchema.parse(JSON.parse(jsonStr));
       const scores = parsed.scores;
-      if (
-        typeof scores.logical_coherence !== 'number' ||
-        typeof scores.rebuttal_strength !== 'number' ||
-        typeof scores.factuality !== 'number'
-      ) {
-        throw new Error('Invalid score types');
-      }
-
-      // Ensure scores are in range 1-10
-      const validateScore = (score: number, name: string) => {
-        if (score < 1 || score > 10) {
-          throw new Error(`${name} score must be between 1 and 10`);
-        }
-      };
-
-      validateScore(scores.logical_coherence, 'Logical coherence');
-      validateScore(scores.rebuttal_strength, 'Rebuttal strength');
-      validateScore(scores.factuality, 'Factuality');
-
-      // Validate justification length
-      if (parsed.justification.length < 100) {
-        throw new Error('Justification must be at least 100 characters');
-      }
 
       return {
         winner: parsed.winner as DebateWinner,

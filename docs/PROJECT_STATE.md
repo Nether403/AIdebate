@@ -12,6 +12,8 @@ AI Debate Arena is under revival as a focused LLM debate benchmarking and alignm
 
 - The working tree is dirty and contains both tracked edits and untracked files.
 - `docs/REVIVAL_ROADMAP.md` and `AGENTS.md` now define the revival direction.
+- Product-era dashboard, leaderboard, statistics, betting, prediction-market, sharing, rating, and abuse-detection surfaces have been archived under `archive/product-era/`.
+- `npm run typecheck` passes after the Phase 1 cleanup and Phase 2/3 schema updates as of 2026-05-11.
 - `npm run build` passes as of 2026-05-11.
 - `npm run typecheck` passes as of 2026-05-11.
 - `npm test` passes as of 2026-05-11: 42 tests, 0 failures.
@@ -28,9 +30,10 @@ AI Debate Arena is under revival as a focused LLM debate benchmarking and alignm
 - Judge parse failures are now represented as `evaluation_failed` artifacts in the main executor path, but this still needs mock and live-provider verification.
 - Fact-check sources are now carried into persisted records from the graph path, but export verification is still required.
 - Provider-call metadata still needs an explicit durable model beyond turn-level token/latency fields.
-- The UI still has old routes even where active navigation has been narrowed.
+- Provider-call metadata now has a durable table and write path for debater, fact-checker, and judge stages; live-provider verification is still needed.
+- The most obvious product-era routes are now archived rather than active.
 - Some tracked docs still claim or imply old production/social-product readiness and need archival or rewrite.
-- `benchmark_runs`, `topic_sets`, prompt templates, model snapshots, and dataset export manifests are not implemented yet.
+- `benchmark_runs`, `topic_sets`, prompt templates, model snapshots, provider-call telemetry, and dataset export manifests now exist in schema; migrations and live benchmark-loop verification still need completion.
 
 ## Current Priority
 
@@ -47,3 +50,14 @@ AI Debate Arena is under revival as a focused LLM debate benchmarking and alignm
 - The executor no longer reinserts turns from final graph state; accepted turns are persisted by the round transition node to reduce duplicate-turn risk.
 - Single-debate export now includes the new persisted config and judge parse metadata.
 - Migration `drizzle/0002_melodic_adam_warlock.sql` was generated for the new debate and evaluation metadata columns.
+
+## Latest Cleanup And Phase 3 Work
+
+- Product-era code was archived under `archive/product-era/`; see `docs/PHASE_1_CLEANUP.md`.
+- `docs/DATA_SCHEMA.md` now documents active artifact, benchmark, provider-call, and export tables.
+- Debate turns now persist token usage, latency, provider, actual model ID, and cost estimate when available.
+- A durable `llm_provider_calls` table and telemetry helper now record debater, fact-checker, and judge stage calls.
+- Fact-check claim extraction and evidence analysis now use the central fact-checker model configuration.
+- Judge response parsing now uses a Zod schema before persistence.
+- Single-debate exports include benchmark run ID, topic source metadata, turn provider/cost metadata, and provider-call telemetry.
+- New CLI scripts exist for one-off debate runs, single-debate exports, and benchmark dataset JSONL plus manifest exports.

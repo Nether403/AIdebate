@@ -86,6 +86,11 @@ export const DebateStateAnnotation = Annotation.Root({
     critique: string
     speech: string
     wordCount: number
+    tokensUsed?: number
+    latencyMs?: number
+    provider?: string
+    actualModelId?: string
+    costEstimate?: number
   } | null>({
     reducer: (_, update) => update,
     default: () => null,

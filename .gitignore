@@ -45,10 +45,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# drizzle
-/drizzle/*.sql
-
 # archive (old prototype)
-/archive
+/archive/*
+!/archive/README.md
+!/archive/product-era/
+!/archive/product-era/**
 /docs/archive/
 /scripts/archive/

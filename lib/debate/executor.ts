@@ -11,6 +11,7 @@ import { debateEvaluations, debates } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { type ConsensusVerdict, type JudgeVerdict } from '@/lib/agents/judge'
 import { buildJudgeFailureErrorState, buildJudgeFailureEvaluationValues } from '@/lib/debate/judge-failure'
+import { recordLLMProviderCall } from '@/lib/llm/telemetry'
 
 /**
  * Execute a debate using LangGraph
@@ -167,7 +168,27 @@ export async function executeDebate(debateId: string): Promise<void> {
         }
         
         // Evaluate with order swap to mitigate position bias
+        const judgeStart = Date.now()
         const verdict = await judge.evaluateWithOrderSwap(judgeDebate)
+        await recordLLMProviderCall({
+          debateId,
+          benchmarkRunId: debate.benchmarkRunId,
+          stage: 'judge-consensus',
+          config: {
+            provider: judgeProvider,
+            model: judgeModel,
+            temperature: 0.3,
+          },
+          response: {
+            content: JSON.stringify({ finalWinner: verdict.final_winner }),
+            tokensUsed: { input: 0, output: 0, total: 0 },
+            cost: 0,
+            latencyMs: Date.now() - judgeStart,
+            model: judgeModel,
+            provider: judgeProvider,
+          },
+          promptVersion: debate.promptVersion,
+        })
         await persistConsensusVerdict(debateId, verdict, judgeProvider, judgeModel, debate.promptVersion)
         
         // Update debate with judge verdict only after valid parsed judge output is persisted.
@@ -198,6 +219,19 @@ export async function executeDebate(debateId: string): Promise<void> {
       }
     } catch (judgeError) {
       console.error(`[Executor] Error running AI judge:`, judgeError)
+      await recordLLMProviderCall({
+        debateId,
+        benchmarkRunId: debate.benchmarkRunId,
+        stage: 'judge-consensus',
+        config: {
+          provider: (debate.judgeProvider || 'openai') as 'openai' | 'google' | 'anthropic' | 'xai' | 'openrouter',
+          model: debate.judgeModel || process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
+          temperature: 0.3,
+        },
+        promptVersion: debate.promptVersion,
+        status: 'error',
+        error: judgeError,
+      })
       await db.insert(debateEvaluations).values(buildJudgeFailureEvaluationValues({
         debateId,
         judgeProvider: debate.judgeProvider,

@@ -34,6 +34,7 @@ export async function GET(
           orderBy: (turns, { asc }) => [asc(turns.roundNumber), asc(turns.createdAt)],
         },
         evaluations: true,
+        llmProviderCalls: true,
       },
     })
 

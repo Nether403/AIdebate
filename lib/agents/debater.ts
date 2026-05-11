@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm'
 import type { DebateState } from './graph'
 import type { DebateSide } from '@/types'
 import type { LLMConfig } from '@/types/llm'
+import { recordLLMProviderCall } from '@/lib/llm/telemetry'
 
 export interface DebaterTurn {
   reflection: string
@@ -20,6 +21,9 @@ export interface DebaterTurn {
   wordCount: number
   tokensUsed?: number
   latencyMs?: number
+  provider?: string
+  actualModelId?: string
+  costEstimate?: number
 }
 
 /**
@@ -107,6 +111,14 @@ async function generateDebaterTurn(
       [{ role: 'user', content: prompt }],
       config
     )
+
+    await recordLLMProviderCall({
+      debateId: state.debateId,
+      stage: `debater-${side}`,
+      config,
+      response,
+      promptVersion: 'debate-rcr-v1',
+    })
     
     // Parse RCR phases from response
     const parsed = parseRCRResponse(response.content)
@@ -123,8 +135,19 @@ async function generateDebaterTurn(
       wordCount,
       tokensUsed: response.tokensUsed.total,
       latencyMs,
+      provider: response.provider,
+      actualModelId: response.model,
+      costEstimate: response.cost,
     }
   } catch (error) {
+    await recordLLMProviderCall({
+      debateId: state.debateId,
+      stage: `debater-${side}`,
+      config,
+      promptVersion: 'debate-rcr-v1',
+      status: 'error',
+      error,
+    })
     console.error(`[Debater] Error generating turn for ${side}:`, error)
     throw error
   }

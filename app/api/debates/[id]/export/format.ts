@@ -2,11 +2,14 @@ export function formatDebateExport(debate: any, exportedAt = new Date()) {
   return {
     debate: {
       id: debate.id,
+      benchmarkRunId: debate.benchmarkRunId,
       status: debate.status,
       topic: {
         motion: debate.topic.motion,
         category: debate.topic.category,
         difficulty: debate.topic.difficulty,
+        source: debate.topic.source,
+        sourceMetadata: debate.topic.sourceMetadata,
       },
       participants: {
         pro: {
@@ -77,6 +80,9 @@ export function formatDebateExport(debate: any, exportedAt = new Date()) {
         wordCount: turn.wordCount,
         tokensUsed: turn.tokensUsed,
         latencyMs: turn.latencyMs,
+        provider: turn.provider,
+        actualModelId: turn.actualModelId,
+        costEstimate: turn.costEstimate,
         wasRejected: turn.wasRejected,
         retryCount: turn.retryCount,
       },
@@ -110,9 +116,27 @@ export function formatDebateExport(debate: any, exportedAt = new Date()) {
       tiebreakerUsed: evaluation.tiebreakerUsed,
       timestamp: evaluation.createdAt,
     })),
+    providerCalls: (debate.llmProviderCalls || []).map((call: any) => ({
+      stage: call.stage,
+      provider: call.provider,
+      requestedModel: call.requestedModel,
+      actualModel: call.actualModel,
+      promptVersion: call.promptVersion,
+      generationParams: call.generationParams,
+      tokenUsage: {
+        input: call.inputTokens,
+        output: call.outputTokens,
+        total: call.totalTokens,
+      },
+      latencyMs: call.latencyMs,
+      costEstimate: call.costEstimate,
+      status: call.status,
+      errorMessage: call.errorMessage,
+      createdAt: call.createdAt,
+    })),
     exportMetadata: {
       exportedAt: exportedAt.toISOString(),
-      version: '1.0',
+      version: '1.1',
       format: 'json',
     },
   }

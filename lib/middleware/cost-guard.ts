@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { checkSpendingCap, estimateDebateCost, sendCostAlert, getDailyCostSummary } from '@/lib/security/cost-monitoring'
+import { estimateDebateCost as estimateInfrastructureCost } from '@/lib/llm/model-config'
 
 export interface DebateConfig {
   rounds: number
@@ -25,24 +25,22 @@ export async function checkCostGuard(config: DebateConfig): Promise<{
   cap: number
   estimatedCost: number
 }> {
-  const spendingStatus = await checkSpendingCap()
-  const estimatedCost = estimateDebateCost(config)
-  
-  // Check if adding this debate would exceed the cap
-  const projectedSpend = spendingStatus.currentSpend + estimatedCost
-  const allowed = projectedSpend <= spendingStatus.cap
-  
-  // Send alert if we're at 90% of cap
-  if (spendingStatus.currentSpend >= spendingStatus.cap * 0.9 && !spendingStatus.exceeded) {
-    const summary = await getDailyCostSummary()
-    await sendCostAlert(summary)
-  }
+  const cap = Number(process.env.DAILY_SPENDING_CAP_USD || '25')
+  const currentSpend = 0
+  const estimate = estimateInfrastructureCost(
+    config.rounds,
+    2,
+    400,
+    config.factCheckingEnabled ? 3 : 0
+  )
+  const estimatedCost = estimate.totalInfrastructureCost
+  const allowed = currentSpend + estimatedCost <= cap
   
   return {
     allowed,
     reason: allowed ? undefined : 'Daily spending cap would be exceeded',
-    currentSpend: spendingStatus.currentSpend,
-    cap: spendingStatus.cap,
+    currentSpend,
+    cap,
     estimatedCost,
   }
 }
