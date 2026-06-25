@@ -48,7 +48,18 @@ Single-debate exports include:
 - judge evaluations and parse diagnostics.
 - provider-call telemetry.
 
-Dataset exports write completed debates only to `debates.jsonl` and write excluded failed or evaluation-failed debates to `manifest.json` diagnostics. Failed artifacts are preserved in the database but excluded from aggregate metrics by default.
+Dataset exports produce a per-run set of files under the output directory:
+
+- `debates.jsonl`: one row per completed debate.
+- `turns.jsonl`: one row per accepted or rejected turn, keyed by `debateId` and `turnId`.
+- `fact_checks.jsonl`: one row per claim with verdict, confidence, reasoning, and sources.
+- `judge_evaluations.jsonl`: one row per judge evaluation (pro-first, con-first, tiebreaker, consensus).
+- `provider_calls.jsonl`: one row per durable LLM provider call, including stage, tokens, latency, and cost.
+- `model_snapshots.jsonl`: one row per persisted benchmark-run model snapshot.
+- `model_metrics.csv`: per (provider, providerModelId) aggregate metrics.
+- `manifest.json`: run config, schema version (`dataset-export-v2`), list of files written, row counts, and excluded debate diagnostics.
+
+Only `completed` debates contribute to `debates.jsonl`, `turns.jsonl`, `fact_checks.jsonl`, `judge_evaluations.jsonl`, `provider_calls.jsonl`, and `model_metrics.csv`. `failed` and `evaluation_failed` debates are preserved in the database and enumerated in the manifest diagnostics so they can be inspected but do not skew aggregate metrics.
 
 ## Legacy Product-Era Schema
 

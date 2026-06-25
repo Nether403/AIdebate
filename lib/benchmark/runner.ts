@@ -1,10 +1,11 @@
 import { db } from '@/lib/db/client'
-import { benchmarkRuns, debates } from '@/lib/db/schema'
+import { benchmarkRuns, debates, modelSnapshots, models } from '@/lib/db/schema'
 import { createDebateEngine } from '@/lib/debate/engine'
 import { executeDebate } from '@/lib/debate/executor'
 import { eq, inArray } from 'drizzle-orm'
 import type { BenchmarkRunConfig } from './config'
 import { summarizeBenchmarkStatuses } from './summary'
+import { collectPendingSnapshots } from './snapshots'
 
 export interface BenchmarkRunResult {
   benchmarkRunId: string
@@ -13,6 +14,7 @@ export interface BenchmarkRunResult {
   completedDebates: number
   failedDebates: number
   evaluationFailedDebates: number
+  modelSnapshotCount: number
 }
 
 export async function createBenchmarkRun(config: BenchmarkRunConfig): Promise<string> {
@@ -32,6 +34,61 @@ export async function createBenchmarkRun(config: BenchmarkRunConfig): Promise<st
   return run.id
 }
 
+/**
+ * Persist model snapshots for a benchmark run.
+ *
+ * Debater snapshots resolve provider/providerModelId from the active models table so
+ * downstream analysis can tie a benchmark run to the exact (provider, providerModelId)
+ * pair served at run time. Judge and fact-checker snapshots come from the central
+ * infrastructure model config.
+ */
+async function persistModelSnapshots(benchmarkRunId: string, config: BenchmarkRunConfig): Promise<number> {
+  const pendingSnapshots = collectPendingSnapshots(config.debates)
+
+  const debaterModelIds = pendingSnapshots
+    .filter(snapshot => snapshot.modelId && (snapshot.role === 'pro' || snapshot.role === 'con'))
+    .map(snapshot => snapshot.modelId!)
+
+  const uniqueModelIds = Array.from(new Set(debaterModelIds))
+  const modelRows = uniqueModelIds.length > 0
+    ? await db.select({
+        id: models.id,
+        name: models.name,
+        provider: models.provider,
+        modelId: models.modelId,
+      }).from(models).where(inArray(models.id, uniqueModelIds))
+    : []
+
+  const modelLookup = new Map(modelRows.map(row => [row.id, row]))
+
+  const resolved = pendingSnapshots.map(snapshot => {
+    if (snapshot.modelId && modelLookup.has(snapshot.modelId)) {
+      const row = modelLookup.get(snapshot.modelId)!
+      return {
+        ...snapshot,
+        provider: row.provider,
+        providerModelId: row.modelId,
+        displayName: row.name,
+      }
+    }
+    return snapshot
+  })
+
+  if (resolved.length === 0) return 0
+
+  await db.insert(modelSnapshots).values(resolved.map(snapshot => ({
+    benchmarkRunId,
+    modelId: snapshot.modelId,
+    provider: snapshot.provider,
+    providerModelId: snapshot.providerModelId,
+    displayName: snapshot.displayName,
+    role: snapshot.role,
+    metadata: snapshot.metadata,
+  })))
+
+  return resolved.length
+}
+
 export async function runBenchmark(config: BenchmarkRunConfig): Promise<BenchmarkRunResult> {
   const benchmarkRunId = await createBenchmarkRun(config)
   const engine = createDebateEngine()
@@ -40,6 +97,8 @@ export async function runBenchmark(config: BenchmarkRunConfig): Promise<Benchmar
   await db.update(benchmarkRuns)
     .set({ status: 'running', startedAt: new Date() })
     .where(eq(benchmarkRuns.id, benchmarkRunId))
+
+  const modelSnapshotCount = await persistModelSnapshots(benchmarkRunId, config)
 
   try {
     for (const debateConfig of config.debates) {
@@ -75,6 +134,7 @@ export async function runBenchmark(config: BenchmarkRunConfig): Promise<Benchmar
       benchmarkRunId,
       debateIds,
       ...summary,
+      modelSnapshotCount,
     }
   } catch (error) {
     await db.update(benchmarkRuns)

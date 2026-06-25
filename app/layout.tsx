@@ -8,8 +8,8 @@ import { ToastProvider } from '@/components/layout/Toast'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'AI Debate Arena - LLM Benchmark Platform',
-  description: 'A scientifically rigorous benchmark platform that evaluates Large Language Models through adversarial debates',
+  title: 'AI Debate Workbench',
+  description: 'A lean LLM debate benchmarking and alignment-research workbench focused on reliable, inspectable debate artifacts.',
 }
 
 export default function RootLayout({

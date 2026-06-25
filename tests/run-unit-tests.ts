@@ -9,6 +9,8 @@ const testFiles = [
   'app/api/debates/[id]/export/__tests__/format.test.ts',
   'lib/benchmark/__tests__/config.test.ts',
   'lib/benchmark/__tests__/runner.test.ts',
+  'lib/benchmark/__tests__/snapshots.test.ts',
+  'lib/benchmark/__tests__/dataset.test.ts',
 ]
 
 const stream = run({ files: testFiles, concurrency: true })

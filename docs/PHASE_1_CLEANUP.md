@@ -16,9 +16,12 @@ The following were moved under `archive/product-era/`:
 - Betting/test-betting pages.
 - Prediction-market API routes.
 - Public share/featured debate endpoints.
+- Public anonymized export API route (`/api/export/anonymized`) archived on 2026-05-11 as part of the revival cleanup follow-up.
 - Prediction, leaderboard, statistics, and share UI components.
 - Product-era prediction, rating, abuse-detection, fingerprint, and cost-monitoring libraries.
 - Product-era admin cost and suspicious-session routes.
+
+Ad-hoc and product-era development scripts were moved under `scripts/archive/` on 2026-05-11. These include one-off seed repair scripts, manual test harnesses, and the deploy-preflight script. They are retained for reference only and are excluded from `npm run typecheck`.
 
 ## Active Tree Changes
 
