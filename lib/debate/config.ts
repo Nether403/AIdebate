@@ -22,7 +22,7 @@ export const DebateConfigSchema = z.object({
   
   // Debate parameters
   totalRounds: z.number().int().min(1).max(10).default(3),
-  wordLimitPerTurn: z.number().int().min(100).max(1000).default(500),
+  wordLimitPerTurn: z.number().int().min(100).max(1000).default(250),
   
   // Fact-checking configuration
   factCheckMode: z.enum(['standard', 'strict', 'off']).default('standard'),
@@ -40,7 +40,7 @@ export type DebateConfig = z.infer<typeof DebateConfigSchema>
 export class DebateConfigBuilder {
   private config: Partial<DebateConfig> = {
     totalRounds: 3,
-    wordLimitPerTurn: 500,
+    wordLimitPerTurn: 250,
     factCheckMode: 'standard',
     topicSelection: 'random',
   }

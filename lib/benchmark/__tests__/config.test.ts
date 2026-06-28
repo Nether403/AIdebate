@@ -18,7 +18,7 @@ describe('parseBenchmarkRunConfig', () => {
     assert.strictEqual(config.debates.length, 1)
     assert.strictEqual(config.debates[0].topicSelection, 'random')
     assert.strictEqual(config.debates[0].totalRounds, 1)
-    assert.strictEqual(config.debates[0].wordLimitPerTurn, 500)
+    assert.strictEqual(config.debates[0].wordLimitPerTurn, 250)
     assert.strictEqual(config.debates[0].factCheckMode, 'standard')
   })
 
