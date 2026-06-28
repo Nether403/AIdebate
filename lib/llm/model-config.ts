@@ -19,24 +19,37 @@ export interface ModelAssignment {
 }
 
 /**
+ * Resolve the env-configured Azure OpenAI deployment name, tolerating both the
+ * documented `AZURE_OPENAI_API_DEPLOYMENT_NAME` and the shorter
+ * `AZURE_OPENAI_DEPLOYMENT_NAME` that appears in some local `.env` files.
+ */
+export function getAzureDeploymentName(): string | undefined {
+  return process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || process.env.AZURE_OPENAI_DEPLOYMENT_NAME || undefined;
+}
+
+/**
  * Infrastructure model assignments (direct APIs)
  */
 export const INFRASTRUCTURE_MODELS: Record<string, ModelAssignment> = {
   judge: {
     role: 'judge',
-    model: 'gemini-3-pro-preview',
+    // Use the env-configured Gemini model (direct Google API via GEMINI_API_KEY).
+    model: process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
     provider: 'google',
     fallbackProvider: 'openrouter',
-    fallbackModel: 'google/gemini-3-pro-preview',
-    description: 'Primary debate adjudicator - Gemini 3.0 Pro for excellent reasoning and massive context',
+    // OpenRouter equivalent for when the direct Google API is unavailable.
+    fallbackModel: `google/${process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite'}`,
+    description: 'Primary debate adjudicator - Gemini (direct Google API) with OpenRouter fallback',
   },
   factChecker: {
     role: 'fact-checker',
-    model: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
+    // Dedicated Azure deployment for fact-checking (a faster mini model), falling
+    // back to the default chat deployment, then a generic model name.
+    model: process.env.AZURE_OPENAI_FACTCHECK_DEPLOYMENT_NAME || getAzureDeploymentName() || 'gpt-4o-mini',
     provider: 'openai',
     fallbackProvider: 'openrouter',
     fallbackModel: 'openai/gpt-5.1',
-    description: 'Fact validation via Azure OpenAI deployment for high precision and structured output',
+    description: 'Fact validation via a dedicated Azure mini deployment for speed and precision',
   },
   moderator: {
     role: 'moderator',
@@ -269,6 +282,22 @@ export function getDebaterModelsByTier(tier?: 'frontier' | 'advanced' | 'capable
  */
 export function isValidDebaterModel(modelId: string): boolean {
   return DEBATER_MODELS.some(m => m.id === modelId);
+}
+
+/**
+ * Map a model identifier to the slug OpenRouter expects when the OpenRouter
+ * fallback is triggered. Infrastructure models are configured with provider-
+ * native IDs (e.g. `gemini-3-pro-preview`) that OpenRouter does not recognize;
+ * this resolves them to their declared `fallbackModel` slug. Models that are
+ * already OpenRouter slugs (contain a `/`) are returned unchanged.
+ */
+export function getOpenRouterFallbackModel(model: string): string {
+  for (const assignment of Object.values(INFRASTRUCTURE_MODELS)) {
+    if (assignment.model === model && assignment.fallbackModel) {
+      return assignment.fallbackModel;
+    }
+  }
+  return model;
 }
 
 /**

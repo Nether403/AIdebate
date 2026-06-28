@@ -9,31 +9,21 @@ import type { DebateTurn, DebateWinner, EvaluationOrder } from '@/types';
 import { z } from 'zod';
 
 const logicalFallacySchema = z.object({
-  type: z.enum([
-    'ad_hominem',
-    'strawman',
-    'false_dichotomy',
-    'appeal_to_authority',
-    'slippery_slope',
-    'circular_reasoning',
-    'hasty_generalization',
-    'red_herring',
-    'appeal_to_emotion',
-    'false_cause',
-    'bandwagon',
-    'tu_quoque',
-  ]),
+  // Judges routinely emit fallacy labels outside any fixed list. This is
+  // descriptive metadata, so accept any label rather than failing the whole
+  // verdict on an unrecognized type. Severity tolerates unexpected values too.
+  type: z.string(),
   description: z.string(),
   location: z.string(),
-  severity: z.enum(['minor', 'moderate', 'severe']),
+  severity: z.enum(['minor', 'moderate', 'severe']).catch('moderate'),
 });
 
 const judgeResponseSchema = z.object({
   winner: z.enum(['pro', 'con', 'tie']),
   scores: z.object({
-    logical_coherence: z.number().min(1).max(10),
-    rebuttal_strength: z.number().min(1).max(10),
-    factuality: z.number().min(1).max(10),
+    logical_coherence: z.number().min(0).max(10),
+    rebuttal_strength: z.number().min(0).max(10),
+    factuality: z.number().min(0).max(10),
   }),
   justification: z.string().min(100),
   flagged_fallacies: z.array(logicalFallacySchema).default([]),
@@ -55,7 +45,7 @@ export type FallacyType =
   | 'tu_quoque';
 
 export interface LogicalFallacy {
-  type: FallacyType;
+  type: string;
   description: string;
   location: string; // Which turn/speech contained the fallacy
   severity: 'minor' | 'moderate' | 'severe';
@@ -76,6 +66,12 @@ export interface JudgeVerdict {
     judge_model: string;
     evaluation_order: EvaluationOrder;
     timestamp: Date;
+    // Provider-call telemetry for the LLM call that produced this verdict.
+    tokens_used?: { input: number; output: number; total: number };
+    cost?: number;
+    latency_ms?: number;
+    provider?: string;
+    actual_model?: string;
   };
 }
 
@@ -135,7 +131,7 @@ export class JudgeAgent {
       temperature: 0.3, // Lower temperature for more consistent judgments
       maxTokens: 2000,
       useTiebreaker: true,
-      tiebreakerModel: config.tiebreakerModel || process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
+      tiebreakerModel: config.tiebreakerModel || process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4o-mini',
       tiebreakerProvider: config.tiebreakerProvider || 'openai',
       ...config,
     };
@@ -174,6 +170,11 @@ export class JudgeAgent {
           judge_model: this.config.model,
           evaluation_order: order,
           timestamp: new Date(),
+          tokens_used: response.tokensUsed,
+          cost: response.cost,
+          latency_ms: response.latencyMs,
+          provider: response.provider,
+          actual_model: response.model,
         },
       };
     } catch (error) {
@@ -257,6 +258,11 @@ export class JudgeAgent {
         judge_model: this.config.tiebreakerModel!,
         evaluation_order: 'pro_first',
         timestamp: new Date(),
+        tokens_used: response.tokensUsed,
+        cost: response.cost,
+        latency_ms: response.latencyMs,
+        provider: response.provider,
+        actual_model: response.model,
       },
     };
   }

@@ -13,6 +13,42 @@ import { type ConsensusVerdict, type JudgeVerdict } from '@/lib/agents/judge'
 import { buildJudgeFailureErrorState, buildJudgeFailureEvaluationValues } from '@/lib/debate/judge-failure'
 import { recordLLMProviderCall } from '@/lib/llm/telemetry'
 
+type JudgeProvider = 'openai' | 'google' | 'anthropic' | 'xai' | 'openrouter'
+
+/**
+ * Record provider-call telemetry for a single judge evaluation using the
+ * token/cost/latency captured on the verdict metadata. Falls back to the
+ * configured judge provider/model when the actual call metadata is absent.
+ */
+async function recordJudgeEvaluationCall(
+  debateId: string,
+  benchmarkRunId: string | null,
+  promptVersion: string | null,
+  stage: string,
+  verdict: JudgeVerdict,
+  judgeProvider: JudgeProvider,
+  judgeModel: string
+): Promise<void> {
+  const m = verdict.metadata
+  const provider = (m.provider as JudgeProvider) || judgeProvider
+  const model = m.actual_model || m.judge_model || judgeModel
+  await recordLLMProviderCall({
+    debateId,
+    benchmarkRunId,
+    stage,
+    config: { provider, model, temperature: 0.3 },
+    response: {
+      content: '',
+      tokensUsed: m.tokens_used || { input: 0, output: 0, total: 0 },
+      cost: m.cost ?? 0,
+      latencyMs: m.latency_ms ?? 0,
+      model,
+      provider,
+    },
+    promptVersion,
+  })
+}
+
 /**
  * Execute a debate using LangGraph
  */
@@ -168,27 +204,15 @@ export async function executeDebate(debateId: string): Promise<void> {
         }
         
         // Evaluate with order swap to mitigate position bias
-        const judgeStart = Date.now()
         const verdict = await judge.evaluateWithOrderSwap(judgeDebate)
-        await recordLLMProviderCall({
-          debateId,
-          benchmarkRunId: debate.benchmarkRunId,
-          stage: 'judge-consensus',
-          config: {
-            provider: judgeProvider,
-            model: judgeModel,
-            temperature: 0.3,
-          },
-          response: {
-            content: JSON.stringify({ finalWinner: verdict.final_winner }),
-            tokensUsed: { input: 0, output: 0, total: 0 },
-            cost: 0,
-            latencyMs: Date.now() - judgeStart,
-            model: judgeModel,
-            provider: judgeProvider,
-          },
-          promptVersion: debate.promptVersion,
-        })
+
+        // Record real per-evaluation provider-call telemetry (pro-first,
+        // con-first, and tiebreaker when used) from the judge verdict metadata.
+        await recordJudgeEvaluationCall(debateId, debate.benchmarkRunId, debate.promptVersion, 'judge-pro-first', verdict.pro_first_verdict, judgeProvider, judgeModel)
+        await recordJudgeEvaluationCall(debateId, debate.benchmarkRunId, debate.promptVersion, 'judge-con-first', verdict.con_first_verdict, judgeProvider, judgeModel)
+        if (verdict.tiebreaker_verdict) {
+          await recordJudgeEvaluationCall(debateId, debate.benchmarkRunId, debate.promptVersion, 'judge-tiebreaker', verdict.tiebreaker_verdict, judgeProvider, judgeModel)
+        }
         await persistConsensusVerdict(debateId, verdict, judgeProvider, judgeModel, debate.promptVersion)
         
         // Update debate with judge verdict only after valid parsed judge output is persisted.

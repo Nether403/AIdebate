@@ -8,6 +8,7 @@ import { GoogleProvider } from './providers/google';
 import { AnthropicProvider } from './providers/anthropic';
 import { XAIProvider } from './providers/xai';
 import { OpenRouterProvider } from './providers/openrouter';
+import { getOpenRouterFallbackModel } from './model-config';
 import type {
   LLMProvider,
   LLMMessage,
@@ -31,17 +32,19 @@ export class LLMClient {
     if (process.env.AZURE_OPENAI_API_KEY) {
       this.providers.set('openai', new OpenAIProvider({
         apiKey: process.env.AZURE_OPENAI_API_KEY,
-        azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME,
-        azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME,
+        azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME || process.env.AZURE_OPENAI_INSTANCE_NAME,
+        azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
         azureOpenAIApiVersion: process.env.AZURE_OPENAI_API_VERSION,
         azureOpenAIEndpoint: process.env.AZURE_OPENAI_ENDPOINT,
       }));
     }
 
-    // Initialize Google
-    if (process.env.GOOGLE_API_KEY) {
+    // Initialize Google (Gemini). Prefer GEMINI_API_KEY; accept the legacy
+    // GOOGLE_API_KEY name as a fallback.
+    const googleKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (googleKey) {
       this.providers.set('google', new GoogleProvider({
-        apiKey: process.env.GOOGLE_API_KEY,
+        apiKey: googleKey,
       }));
     }
 
@@ -94,7 +97,11 @@ export class LLMClient {
       if (config.provider !== 'openrouter' && this.isProviderAvailable('openrouter')) {
         try {
           const fallbackProvider = this.getProvider('openrouter');
-          const fallbackConfig = { ...config, provider: 'openrouter' as LLMProvider };
+          const fallbackConfig = {
+            ...config,
+            provider: 'openrouter' as LLMProvider,
+            model: getOpenRouterFallbackModel(config.model),
+          };
           return await fallbackProvider.generate(messages, fallbackConfig);
         } catch (fallbackError) {
           console.error('[LLMClient] OpenRouter fallback also failed');
@@ -120,7 +127,11 @@ export class LLMClient {
       if (config.provider !== 'openrouter' && this.isProviderAvailable('openrouter')) {
         try {
           const fallbackProvider = this.getProvider('openrouter');
-          const fallbackConfig = { ...config, provider: 'openrouter' as LLMProvider };
+          const fallbackConfig = {
+            ...config,
+            provider: 'openrouter' as LLMProvider,
+            model: getOpenRouterFallbackModel(config.model),
+          };
           yield* fallbackProvider.stream(messages, fallbackConfig);
           return;
         } catch (fallbackError) {

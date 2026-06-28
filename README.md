@@ -116,6 +116,8 @@ npm run test:live
 
 Prediction-market, DebatePoints, leaderboard, betting, public-sharing, and other consumer-product surfaces have been archived under `archive/product-era/` for reference. They are out of scope for the revival MVP unless `docs/REVIVAL_ROADMAP.md` is explicitly changed.
 
+Stale documentation (deployment/monitoring guides, early planning drafts, research papers, task summaries, and product-era spec artifacts) has been moved under `docs/archive/` (kept on disk, untracked). Active documentation is limited to the canonical docs listed above.
+
 ## Working Rule
 
 Do not add new product features until the benchmark artifact is trustworthy. A change is in scope only if it improves reliable run configuration, execution, persistence, evaluation, inspection, export, or cost safety.
