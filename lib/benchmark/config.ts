@@ -8,7 +8,7 @@ export const benchmarkDebateConfigSchema = z.object({
   proPersonaId: z.string().uuid('proPersonaId must be a UUID').nullable().optional(),
   conPersonaId: z.string().uuid('conPersonaId must be a UUID').nullable().optional(),
   totalRounds: z.number().int().min(1).max(5).default(1),
-  wordLimitPerTurn: z.number().int().min(100).max(1000).default(500),
+  wordLimitPerTurn: z.number().int().min(100).max(1000).default(250),
   factCheckMode: z.enum(['off', 'standard', 'strict']).default('standard'),
 })
 

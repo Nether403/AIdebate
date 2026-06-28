@@ -69,7 +69,7 @@ export const debateConfigSchema = z.object({
   proPersonaId: z.string().uuid('Pro persona ID must be a valid UUID').optional(),
   conPersonaId: z.string().uuid('Con persona ID must be a valid UUID').optional(),
   totalRounds: z.number().int().min(1).max(5).default(3),
-  wordLimitPerTurn: z.number().int().min(100).max(1000).default(500),
+  wordLimitPerTurn: z.number().int().min(100).max(1000).default(250),
   factCheckMode: z.enum(['off', 'standard', 'strict']).default('standard'),
 })
 

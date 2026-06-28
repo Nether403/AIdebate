@@ -31,7 +31,7 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
     conModelId: '',
     topicSelection: 'random',
     totalRounds: 3,
-    wordLimitPerTurn: 500,
+    wordLimitPerTurn: 250,
     factCheckMode: 'standard',
   })
 
