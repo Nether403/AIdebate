@@ -11,6 +11,9 @@ export const benchmarkDebateConfigSchema = z.object({
   totalRounds: z.number().int().min(1).max(5).default(1),
   wordLimitPerTurn: z.number().int().min(100).max(1000).default(250),
   factCheckMode: z.enum(['off', 'standard', 'strict']).default('standard'),
+  // Optional judge override for judge-strength experiments (falls back to infra default).
+  judgeProvider: z.enum(['openai', 'google', 'anthropic', 'xai', 'openrouter']).optional(),
+  judgeModel: z.string().min(1).optional(),
 })
 
 export const benchmarkRunConfigSchema = z.object({

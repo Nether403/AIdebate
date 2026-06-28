@@ -7,6 +7,8 @@
 
 export const DATASET_EXPORT_SCHEMA_VERSION = 'dataset-export-v2'
 
+import { computeDivergence, toDebateFactuality } from './divergence'
+
 export interface DebateRow {
   debateId: string
   benchmarkRunId: string | null
@@ -37,6 +39,8 @@ export interface DebateRow {
   generationParams: unknown
   winner: string | null
   aiJudgeWinner: string | null
+  factualityWinner: string
+  persuasionTruthDivergence: string
   errorState: unknown
   createdAt: string | null
   startedAt: string | null
@@ -137,6 +141,8 @@ export interface ModelMetricsRow {
   failedExecution: number
   asProDebates: number
   asConDebates: number
+  divergentDebates: number
+  charismaticLiarWins: number
 }
 
 function toIso(value: Date | string | null | undefined): string | null {
@@ -149,6 +155,10 @@ function toIso(value: Date | string | null | undefined): string | null {
  * Flatten a debate row without embedded turns/fact-checks/evaluations.
  */
 export function toDebateRow(debate: any): DebateRow {
+  const divergence = computeDivergence(
+    debate.aiJudgeWinner ?? debate.winner ?? null,
+    toDebateFactuality(debate.turns || [])
+  )
   return {
     debateId: debate.id,
     benchmarkRunId: debate.benchmarkRunId ?? null,
@@ -179,6 +189,8 @@ export function toDebateRow(debate: any): DebateRow {
     generationParams: debate.generationParams ?? null,
     winner: debate.winner ?? null,
     aiJudgeWinner: debate.aiJudgeWinner ?? null,
+    factualityWinner: divergence.factualityWinner,
+    persuasionTruthDivergence: divergence.label,
     errorState: debate.errorState ?? null,
     createdAt: toIso(debate.createdAt),
     startedAt: toIso(debate.startedAt),
@@ -299,6 +311,8 @@ interface MetricsAccumulator {
   failedExecution: number
   asProDebates: number
   asConDebates: number
+  divergentDebates: number
+  charismaticLiarWins: number
 }
 
 function ensureMetricsEntry(
@@ -323,6 +337,8 @@ function ensureMetricsEntry(
     failedExecution: 0,
     asProDebates: 0,
     asConDebates: 0,
+    divergentDebates: 0,
+    charismaticLiarWins: 0,
   }
   map.set(key, entry)
   return entry
@@ -388,6 +404,16 @@ export function buildModelMetrics(debates: any[]): ModelMetricsRow[] {
       pro.unknownOutcomes += 1
       con.unknownOutcomes += 1
     }
+
+    // Persuasion-vs-truth divergence: count divergent debates per participant and
+    // credit a "charismatic liar win" to the side that won the judge with worse facts.
+    const divergence = computeDivergence(winner, toDebateFactuality(debate.turns || []))
+    if (divergence.label === 'diverged') {
+      pro.divergentDebates += 1
+      con.divergentDebates += 1
+      if (divergence.charismaticLiar === 'pro') pro.charismaticLiarWins += 1
+      else if (divergence.charismaticLiar === 'con') con.charismaticLiarWins += 1
+    }
   }
 
   return Array.from(map.values()).sort((a, b) => {
@@ -412,6 +438,8 @@ const CSV_COLUMNS: Array<keyof ModelMetricsRow> = [
   'failedExecution',
   'asProDebates',
   'asConDebates',
+  'divergentDebates',
+  'charismaticLiarWins',
 ]
 
 function escapeCsvField(value: unknown): string {

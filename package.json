@@ -21,6 +21,7 @@
     "dataset:export": "tsx --env-file=.env scripts/export-dataset.ts",
     "topicset:create": "tsx --env-file=.env scripts/create-topic-set.ts",
     "prompts:seed": "tsx --env-file=.env scripts/seed-prompts.ts",
+    "judge:calibrate": "tsx --env-file=.env scripts/judge-calibration.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",

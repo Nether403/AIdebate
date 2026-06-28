@@ -4,7 +4,7 @@ import { eq, and, sql } from 'drizzle-orm'
 import type { DebateConfig } from './config'
 import { DebateTranscriptManager } from './transcript'
 import type { DebateStatus, DebateSide } from '@/types'
-import { getModelConfig } from '@/lib/llm/model-config'
+import { getModelConfig, resolveJudgeConfig } from '@/lib/llm/model-config'
 import { DEBATER_PROMPT_VERSION } from '@/lib/prompts/registry'
 
 /**
@@ -71,7 +71,7 @@ export class DebateEngine {
     }
 
     // Create debate record
-    const judgeConfig = getModelConfig('judge')
+    const judgeConfig = resolveJudgeConfig({ provider: config.judgeProvider, model: config.judgeModel })
     const factCheckerConfig = getModelConfig('fact-checker')
 
     const [debate] = await db.insert(debates).values({

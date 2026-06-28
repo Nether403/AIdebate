@@ -278,6 +278,19 @@ export function getDebaterModelsByTier(tier?: 'frontier' | 'advanced' | 'capable
 }
 
 /**
+ * Resolve the judge provider/model for a debate, preferring an explicit
+ * per-debate/per-run override and falling back to the infrastructure default.
+ * This is what makes "judge strength" a configurable experimental variable.
+ */
+export function resolveJudgeConfig(override?: { provider?: LLMProvider | null; model?: string | null }): { provider: LLMProvider; model: string } {
+  const base = INFRASTRUCTURE_MODELS.judge
+  return {
+    provider: (override?.provider as LLMProvider) ?? base.provider,
+    model: override?.model ?? base.model,
+  }
+}
+
+/**
  * Validate that a model ID is available for debaters
  */
 export function isValidDebaterModel(modelId: string): boolean {

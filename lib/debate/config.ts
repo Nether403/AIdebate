@@ -26,6 +26,11 @@ export const DebateConfigSchema = z.object({
   
   // Fact-checking configuration
   factCheckMode: z.enum(['standard', 'strict', 'off']).default('standard'),
+
+  // Optional judge override (provider + model). Falls back to the infrastructure
+  // judge config when absent. Enables judge-strength experiments per debate/run.
+  judgeProvider: z.enum(['openai', 'google', 'anthropic', 'xai', 'openrouter']).optional(),
+  judgeModel: z.string().min(1).optional(),
   
   // Position assignment (optional - will be randomized if not specified)
   forceProModel: z.string().uuid().optional(),
