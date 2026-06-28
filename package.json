@@ -19,6 +19,7 @@
     "debate:export": "tsx --env-file=.env scripts/export-debate.ts",
     "benchmark:run": "tsx --env-file=.env scripts/run-benchmark.ts",
     "dataset:export": "tsx --env-file=.env scripts/export-dataset.ts",
+    "topicset:create": "tsx --env-file=.env scripts/create-topic-set.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",

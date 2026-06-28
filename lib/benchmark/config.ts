@@ -4,6 +4,7 @@ export const benchmarkDebateConfigSchema = z.object({
   proModelId: z.string().uuid('proModelId must be a UUID'),
   conModelId: z.string().uuid('conModelId must be a UUID'),
   topicId: z.string().uuid('topicId must be a UUID').optional(),
+  topicSetId: z.string().uuid('topicSetId must be a UUID').optional(),
   topicSelection: z.enum(['random', 'manual']).default('random'),
   proPersonaId: z.string().uuid('proPersonaId must be a UUID').nullable().optional(),
   conPersonaId: z.string().uuid('conPersonaId must be a UUID').nullable().optional(),

@@ -6,6 +6,7 @@ import { eq, inArray } from 'drizzle-orm'
 import type { BenchmarkRunConfig } from './config'
 import { summarizeBenchmarkStatuses } from './summary'
 import { collectPendingSnapshots } from './snapshots'
+import { getTopicSetTopicIds, resolveTopicSetSelections } from '@/lib/topics/topic-sets'
 
 export interface BenchmarkRunResult {
   benchmarkRunId: string
@@ -100,8 +101,19 @@ export async function runBenchmark(config: BenchmarkRunConfig): Promise<Benchmar
 
   const modelSnapshotCount = await persistModelSnapshots(benchmarkRunId, config)
 
+  // Resolve any topic-set references into concrete topicIds (round-robin across
+  // each set) before execution, so debates draw reproducibly from a fixed pool.
+  const uniqueSetIds = Array.from(new Set(
+    config.debates.map(debate => debate.topicSetId).filter((id): id is string => !!id)
+  ))
+  const setTopicIds = new Map<string, string[]>()
+  for (const setId of uniqueSetIds) {
+    setTopicIds.set(setId, await getTopicSetTopicIds(setId))
+  }
+  const resolvedDebates = resolveTopicSetSelections(config.debates, setTopicIds)
+
   try {
-    for (const debateConfig of config.debates) {
+    for (const debateConfig of resolvedDebates) {
       // Isolate each debate: a single failed/evaluation_failed/throwing debate
       // must not abort the whole run. executeDebate persists the failure state
       // with diagnostics; we log and continue so remaining debates still run and
