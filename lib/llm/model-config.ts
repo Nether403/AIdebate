@@ -33,22 +33,23 @@ export function getAzureDeploymentName(): string | undefined {
 export const INFRASTRUCTURE_MODELS: Record<string, ModelAssignment> = {
   judge: {
     role: 'judge',
-    model: 'gemini-3-pro-preview',
+    // Use the env-configured Gemini model (direct Google API via GEMINI_API_KEY).
+    model: process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
     provider: 'google',
     fallbackProvider: 'openrouter',
-    // OpenRouter retired the `google/gemini-3-pro-preview` slug; 3.1 Pro is the
-    // current generation. This is the slug used when the direct Google API key
-    // is absent and the OpenRouter fallback triggers.
-    fallbackModel: 'google/gemini-3.1-pro-preview',
-    description: 'Primary debate adjudicator - Gemini 3 Pro for excellent reasoning and massive context',
+    // OpenRouter equivalent for when the direct Google API is unavailable.
+    fallbackModel: `google/${process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite'}`,
+    description: 'Primary debate adjudicator - Gemini (direct Google API) with OpenRouter fallback',
   },
   factChecker: {
     role: 'fact-checker',
-    model: getAzureDeploymentName() || 'gpt-4o-mini',
+    // Dedicated Azure deployment for fact-checking (a faster mini model), falling
+    // back to the default chat deployment, then a generic model name.
+    model: process.env.AZURE_OPENAI_FACTCHECK_DEPLOYMENT_NAME || getAzureDeploymentName() || 'gpt-4o-mini',
     provider: 'openai',
     fallbackProvider: 'openrouter',
     fallbackModel: 'openai/gpt-5.1',
-    description: 'Fact validation via Azure OpenAI deployment for high precision and structured output',
+    description: 'Fact validation via a dedicated Azure mini deployment for speed and precision',
   },
   moderator: {
     role: 'moderator',

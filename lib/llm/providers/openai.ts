@@ -90,7 +90,10 @@ export class OpenAIProvider extends BaseLLMProvider {
     const base = {
       azureOpenAIApiKey: this.apiKey,
       azureOpenAIApiInstanceName: this.azureOpenAIApiInstanceName,
-      azureOpenAIApiDeploymentName: this.azureOpenAIApiDeploymentName || config.model,
+      // Prefer the per-call model as the deployment so different infrastructure
+      // roles (e.g. fact-checker vs tiebreaker) can target different Azure
+      // deployments. Fall back to the instance-level default deployment.
+      azureOpenAIApiDeploymentName: config.model || this.azureOpenAIApiDeploymentName,
       azureOpenAIApiVersion: this.azureOpenAIApiVersion,
       azureOpenAIEndpoint: this.azureOpenAIEndpoint,
       streaming,

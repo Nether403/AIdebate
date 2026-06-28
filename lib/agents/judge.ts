@@ -131,7 +131,7 @@ export class JudgeAgent {
       temperature: 0.3, // Lower temperature for more consistent judgments
       maxTokens: 2000,
       useTiebreaker: true,
-      tiebreakerModel: config.tiebreakerModel || process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
+      tiebreakerModel: config.tiebreakerModel || process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4o-mini',
       tiebreakerProvider: config.tiebreakerProvider || 'openai',
       ...config,
     };

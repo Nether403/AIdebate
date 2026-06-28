@@ -1,12 +1,14 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { getOpenRouterFallbackModel } from '@/lib/llm/model-config'
+import { getOpenRouterFallbackModel, INFRASTRUCTURE_MODELS } from '@/lib/llm/model-config'
 
 describe('getOpenRouterFallbackModel', () => {
-  test('maps the infra judge model to its valid OpenRouter slug', () => {
+  test('maps the infra judge model to its configured OpenRouter slug', () => {
     // The direct Google model id is not a valid OpenRouter slug; the fallback
-    // must resolve to the configured OpenRouter slug, not pass through unchanged.
-    assert.equal(getOpenRouterFallbackModel('gemini-3-pro-preview'), 'google/gemini-3.1-pro-preview')
+    // must resolve to the judge assignment's declared fallbackModel.
+    const judge = INFRASTRUCTURE_MODELS.judge
+    assert.equal(getOpenRouterFallbackModel(judge.model), judge.fallbackModel)
+    assert.match(judge.fallbackModel!, /^google\//)
   })
 
   test('passes through models that are already OpenRouter slugs', () => {

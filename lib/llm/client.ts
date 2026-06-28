@@ -39,10 +39,12 @@ export class LLMClient {
       }));
     }
 
-    // Initialize Google
-    if (process.env.GOOGLE_API_KEY) {
+    // Initialize Google (Gemini). Prefer GEMINI_API_KEY; accept the legacy
+    // GOOGLE_API_KEY name as a fallback.
+    const googleKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (googleKey) {
       this.providers.set('google', new GoogleProvider({
-        apiKey: process.env.GOOGLE_API_KEY,
+        apiKey: googleKey,
       }));
     }
 
