@@ -17,8 +17,8 @@ This document describes the active research-workbench data model. `lib/db/schema
 ## Phase 3 Benchmark Tables
 
 - `benchmark_runs`: groups debates under a named benchmark execution and stores the run config plus aggregate status counts.
-- `topic_sets`: versioned sets of topics for repeatable benchmark runs.
-- `topic_set_topics`: membership table linking topics to topic sets.
+- `topic_sets`: versioned sets of topics for repeatable benchmark runs. Write path: `createTopicSet()` in `lib/topics/topic-sets.ts` and the `topicset:create` CLI. A benchmark debate config may set `topicSetId` (instead of `topicId`) to draw a topic from the set; debates sharing a set are spread across it round-robin.
+- `topic_set_topics`: membership table linking topics to topic sets, ordered by `position` (de-duplicated on insert).
 - `prompt_templates`: versioned prompt metadata for reproducible debater, judge, fact-checker, and moderator prompts.
 - `model_snapshots`: benchmark-run-scoped snapshots of model/provider identifiers and configuration.
 - `llm_provider_calls`: durable provider-call telemetry for debater, fact-checker, and judge stages.

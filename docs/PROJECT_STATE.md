@@ -55,7 +55,8 @@ Fixes landed on branch `fix/debate-loop-reliability` (verified by 63 passing uni
 - The configured Gemini judge is unusable in the current environment: there is no `GOOGLE_API_KEY` for the direct path, and the OpenRouter Gemini route is BYOK-linked to a Google project with billing disabled. The judge must be pointed at a model the available keys can serve (e.g. a first-party-served OpenRouter slug) until Gemini access is restored.
 - Accepted turns have no minimum-length enforcement: a model that returns an empty speech produces a persisted 0-word turn that still counts toward a completed debate. The moderator's minimum-length check is only a warning and is not enforced in the fact-checker gate.
 - A live debate with fact-checking enabled (`standard`/`strict`) has not yet been exercised end-to-end; the verification runs used `factCheckMode: off`. Tavily + Azure fact-checker wiring is therefore unconfirmed on the current schema.
-- `topic_sets` and `prompt_templates` tables exist but have no write paths; they are scaffolding for Phase 3.
+- `prompt_templates` exists but has no write path yet; it remains scaffolding for Phase 3.
+- `topic_sets`/`topic_set_topics` now have write paths (`lib/topics/topic-sets.ts` + `scripts/create-topic-set.ts`), and benchmark debate configs may reference a `topicSetId` to draw topics from a set round-robin.
 - There is still no partial unique constraint on accepted turns (roadmap calls for idempotency to avoid duplicate turns on retry).
 - Drizzle snapshot chain pre-dates the migration rename and remains nonlinear; this is only risky the next time `drizzle-kit generate` is run.
 - Model registry drift: `DEBATER_MODELS` and the infrastructure model slugs can fall out of sync with OpenRouter's current catalog (the retired `gemini-3-pro-preview` slug is one example). Validate slugs against the live OpenRouter catalog periodically.

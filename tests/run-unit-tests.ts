@@ -13,6 +13,7 @@ const testFiles = [
   'lib/benchmark/__tests__/runner.test.ts',
   'lib/benchmark/__tests__/snapshots.test.ts',
   'lib/benchmark/__tests__/dataset.test.ts',
+  'lib/topics/__tests__/topic-sets.test.ts',
 ]
 
 const stream = run({ files: testFiles, concurrency: true })
