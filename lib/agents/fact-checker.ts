@@ -12,6 +12,7 @@ import type { LLMConfig } from '@/types/llm'
 import { getModelConfig } from '@/lib/llm/model-config'
 import { recordLLMProviderCall } from '@/lib/llm/telemetry'
 import { classifyTurnLength, MIN_SPEECH_WORDS, DEFAULT_MAX_TURN_RETRIES } from './turn-length'
+import { FACT_CHECK_PROMPT_VERSION } from '@/lib/prompts/registry'
 
 export interface Claim {
   text: string
@@ -216,7 +217,7 @@ If no verifiable claims are found, return an empty array: []
       stage: 'fact-check-claim-extraction',
       config,
       response,
-      promptVersion: 'fact-check-v1',
+      promptVersion: FACT_CHECK_PROMPT_VERSION,
     })
     
     // Parse JSON response
@@ -235,7 +236,7 @@ If no verifiable claims are found, return an empty array: []
       debateId,
       stage: 'fact-check-claim-extraction',
       config,
-      promptVersion: 'fact-check-v1',
+      promptVersion: FACT_CHECK_PROMPT_VERSION,
       status: 'error',
       error,
     })
@@ -480,7 +481,7 @@ OUTPUT FORMAT (JSON):
       stage: 'fact-check-evidence-analysis',
       config,
       response,
-      promptVersion: 'fact-check-v1',
+      promptVersion: FACT_CHECK_PROMPT_VERSION,
     })
     
     // Parse JSON response
@@ -503,7 +504,7 @@ OUTPUT FORMAT (JSON):
       debateId,
       stage: 'fact-check-evidence-analysis',
       config,
-      promptVersion: 'fact-check-v1',
+      promptVersion: FACT_CHECK_PROMPT_VERSION,
       status: 'error',
       error,
     })

@@ -19,7 +19,7 @@ This document describes the active research-workbench data model. `lib/db/schema
 - `benchmark_runs`: groups debates under a named benchmark execution and stores the run config plus aggregate status counts.
 - `topic_sets`: versioned sets of topics for repeatable benchmark runs. Write path: `createTopicSet()` in `lib/topics/topic-sets.ts` and the `topicset:create` CLI. A benchmark debate config may set `topicSetId` (instead of `topicId`) to draw a topic from the set; debates sharing a set are spread across it round-robin.
 - `topic_set_topics`: membership table linking topics to topic sets, ordered by `position` (de-duplicated on insert).
-- `prompt_templates`: versioned prompt metadata for reproducible debater, judge, fact-checker, and moderator prompts.
+- `prompt_templates`: versioned prompt registry for reproducible debater, judge, fact-checker, and moderator prompts. Write path: `lib/prompts/registry.ts` (`seedPromptTemplates()`), the `prompts:seed` CLI, and `db:seed`. Agents reference the registry version constants (`DEBATER_PROMPT_VERSION`, `FACT_CHECK_PROMPT_VERSION`, `JUDGE_SCHEMA_VERSION`); a record's `promptVersion` equals `${templateId}-${version}` (e.g. `debate-rcr-v1`), which links back to a registry row.
 - `model_snapshots`: benchmark-run-scoped snapshots of model/provider identifiers and configuration.
 - `llm_provider_calls`: durable provider-call telemetry for debater, fact-checker, and judge stages.
 - `dataset_exports`: export manifests for benchmark-run or single-debate datasets.
