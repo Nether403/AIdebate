@@ -7,6 +7,7 @@ dotenv.config({ path: resolve(process.cwd(), '.env') })
 import { db } from './client'
 import { models, topics, personas } from './schema'
 import { DEBATER_MODELS } from '@/lib/llm/model-config'
+import { seedPromptTemplates } from '@/lib/prompts/registry'
 
 async function seed() {
   console.log('🌱 Seeding database...')
@@ -212,6 +213,11 @@ async function seed() {
 
     await db.insert(topics).values(topicData)
     console.log(`✅ Seeded ${topicData.length} topics`)
+
+    // Seed prompt template registry (idempotent upsert)
+    console.log('📝 Seeding prompt templates...')
+    const promptCount = await seedPromptTemplates()
+    console.log(`✅ Seeded ${promptCount} prompt templates`)
 
     console.log('✨ Database seeding completed successfully!')
   } catch (error) {

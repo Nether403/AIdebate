@@ -1,4 +1,5 @@
 import { JudgeParseError } from '@/lib/agents/judge'
+import { JUDGE_SCHEMA_VERSION } from '@/lib/prompts/registry'
 
 export function buildJudgeFailureEvaluationValues(params: {
   debateId: string
@@ -25,7 +26,7 @@ export function buildJudgeFailureEvaluationValues(params: {
     rawResponse: parseError ? parseError.rawResponse : null,
     errorMessage,
     promptVersion: params.promptVersion,
-    schemaVersion: 'judge-v1',
+    schemaVersion: JUDGE_SCHEMA_VERSION,
     consensus: null,
     tiebreakerUsed: null,
   }
