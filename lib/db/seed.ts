@@ -6,41 +6,24 @@ dotenv.config({ path: resolve(process.cwd(), '.env') })
 
 import { db } from './client'
 import { models, topics, personas } from './schema'
+import { DEBATER_MODELS } from '@/lib/llm/model-config'
 
 async function seed() {
   console.log('🌱 Seeding database...')
 
   try {
     // Seed models
+    // Debater models are sourced from the canonical DEBATER_MODELS registry so
+    // that every seeded model.modelId is a valid OpenRouter slug the debater
+    // path can actually call. (Previously the seed used provider-native IDs
+    // like `gpt-4o-mini`, which the OpenRouter debater path rejected.)
     console.log('📦 Seeding models...')
-    const modelData = [
-      // Latest Frontier Models (Late 2025)
-      // OpenAI models
-      { name: 'GPT-5.1', provider: 'openai', modelId: 'gpt-5.1', isActive: true },
-      { name: 'GPT-5.1 Instant', provider: 'openai', modelId: 'gpt-5.1-instant', isActive: true },
-      { name: 'GPT-5.1 Thinking', provider: 'openai', modelId: 'gpt-5.1-thinking', isActive: true },
-      { name: 'GPT-4o-mini', provider: 'openai', modelId: 'gpt-4o-mini', isActive: true },
-      
-      // Anthropic models
-      { name: 'Claude 4.5 Sonnet', provider: 'anthropic', modelId: 'claude-sonnet-4-5-20250929', isActive: true },
-      { name: 'Claude 4.5 Sonnet (Alias)', provider: 'anthropic', modelId: 'claude-4.5-sonnet', isActive: true },
-      
-      // Google models
-      { name: 'Gemini 3 Pro Preview', provider: 'google', modelId: 'gemini-3-pro-preview', isActive: true },
-      { name: 'Gemini 2.5 Pro', provider: 'google', modelId: 'gemini-2.5-pro', isActive: true },
-      { name: 'Gemini 2.5 Flash', provider: 'google', modelId: 'gemini-2.5-flash', isActive: true },
-      
-      // xAI models
-      { name: 'Grok 4.1', provider: 'xai', modelId: 'grok-4.1', isActive: true },
-      { name: 'Grok 4.1 Fast', provider: 'xai', modelId: 'grok-4.1-fast', isActive: true },
-      
-      // Legacy/Baseline models (for comparison)
-      { name: 'GPT-4', provider: 'openai', modelId: 'gpt-4', isActive: false },
-      { name: 'GPT-4o', provider: 'openai', modelId: 'gpt-4o', isActive: false },
-      { name: 'Claude 3.5 Sonnet', provider: 'anthropic', modelId: 'claude-3-5-sonnet-20241022', isActive: false },
-      { name: 'Gemini 1.5 Pro', provider: 'google', modelId: 'gemini-1.5-pro', isActive: false },
-      { name: 'Grok Beta', provider: 'xai', modelId: 'grok-beta', isActive: false },
-    ]
+    const modelData = DEBATER_MODELS.map(m => ({
+      name: m.name,
+      provider: 'openrouter',
+      modelId: m.id,
+      isActive: true,
+    }))
 
     await db.insert(models).values(modelData)
     console.log(`✅ Seeded ${modelData.length} models`)

@@ -8,7 +8,10 @@ import { db } from '@/lib/db/client'
 import { debateTurns, factChecks, debates } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import type { DebateState } from './graph'
+import type { DebateSide } from '@/types'
 import { v4 as uuidv4 } from 'uuid'
+
+type PersistedTurn = typeof debateTurns.$inferSelect
 
 /**
  * Round Transition Node
@@ -23,10 +26,29 @@ import { v4 as uuidv4 } from 'uuid'
 export async function roundTransitionNode(state: DebateState): Promise<Partial<DebateState>> {
   console.log(`[Round Transition] Processing round ${state.currentRound}`)
   
-  // The Round Transition node is called AFTER each fact-checker validation
-  // We need to persist the current turn if it was accepted
+  // The Round Transition node is called AFTER each fact-checker validation.
+  // Persist the accepted turn and append it to the shared transcript so that
+  // subsequent debater nodes (the opponent this round, and both sides in later
+  // rounds) receive prior turns as rebuttal context.
+  let transcriptUpdate: DebateState['transcript'] = []
   if (state.currentTurnDraft && !state.shouldRejectTurn) {
-    await persistTurn(state)
+    const persisted = await persistTurn(state)
+    transcriptUpdate = [
+      {
+        id: persisted.id,
+        roundNumber: persisted.roundNumber,
+        side: persisted.side as DebateSide,
+        modelId: persisted.modelId,
+        reflection: persisted.reflection,
+        critique: persisted.critique,
+        speech: persisted.speech,
+        wordCount: persisted.wordCount,
+        factChecksPassed: persisted.factChecksPassed,
+        factChecksFailed: persisted.factChecksFailed,
+        wasRejected: persisted.wasRejected,
+        retryCount: persisted.retryCount,
+      },
+    ]
     console.log(`[Round Transition] Persisted ${state.currentSpeaker} turn for round ${state.currentRound}`)
   }
   
@@ -46,6 +68,7 @@ export async function roundTransitionNode(state: DebateState): Promise<Partial<D
   if (!isRoundComplete) {
     console.log(`[Round Transition] Round ${state.currentRound} not complete, continuing`)
     return {
+      transcript: transcriptUpdate,
       metadata: {
         ...state.metadata,
         roundStatus: 'in_progress',
@@ -66,6 +89,7 @@ export async function roundTransitionNode(state: DebateState): Promise<Partial<D
     
     return {
       isDebateComplete: true,
+      transcript: transcriptUpdate,
       metadata: {
         ...state.metadata,
         debateCompletedAt: new Date().toISOString(),
@@ -87,6 +111,7 @@ export async function roundTransitionNode(state: DebateState): Promise<Partial<D
   return {
     currentRound: nextRound,
     isDebateComplete: false,
+    transcript: transcriptUpdate,
     metadata: {
       ...state.metadata,
       lastRoundCompleted: state.currentRound,
@@ -117,7 +142,7 @@ function checkRoundComplete(state: DebateState): boolean {
 /**
  * Persist current turn to database
  */
-async function persistTurn(state: DebateState): Promise<string> {
+async function persistTurn(state: DebateState): Promise<PersistedTurn> {
   if (!state.currentTurnDraft) {
     throw new Error('Cannot persist turn without a current turn draft')
   }
@@ -140,7 +165,7 @@ async function persistTurn(state: DebateState): Promise<string> {
 
     if (existingTurn) {
       console.warn(`[Round Transition] Accepted ${side} turn already exists for debate ${state.debateId} round ${state.currentRound}; skipping duplicate persistence`)
-      return existingTurn.id
+      return existingTurn
     }
 
     // Calculate fact-check stats
@@ -190,7 +215,7 @@ async function persistTurn(state: DebateState): Promise<string> {
     }
     
     console.log(`[Round Transition] Turn persisted with ID: ${insertedTurn.id}`)
-    return insertedTurn.id
+    return insertedTurn
   } catch (error) {
     console.error('[Round Transition] Error persisting turn:', error)
     throw error

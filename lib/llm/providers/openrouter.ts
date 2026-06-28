@@ -83,6 +83,9 @@ export class OpenRouterProvider extends BaseLLMProvider {
           temperature: config.temperature ?? 0.7,
           max_tokens: config.maxTokens,
           top_p: config.topP,
+          // Ask OpenRouter to return authoritative cost accounting so we do not
+          // depend on a hand-maintained price table that drifts as slugs change.
+          usage: { include: true },
         };
 
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -112,6 +115,11 @@ export class OpenRouterProvider extends BaseLLMProvider {
     const outputTokens = response.usage?.completion_tokens || 0;
     const totalTokens = inputTokens + outputTokens;
 
+    // Prefer OpenRouter's reported cost (USD) when present; fall back to the
+    // static price table only for older responses that omit usage accounting.
+    // ponytail: relies on OpenRouter `usage.cost`; static table is the fallback.
+    const reportedCost = typeof response.usage?.cost === 'number' ? response.usage.cost : undefined;
+
     return {
       content: response.choices[0]?.message?.content || '',
       tokensUsed: {
@@ -119,7 +127,7 @@ export class OpenRouterProvider extends BaseLLMProvider {
         output: outputTokens,
         total: totalTokens,
       },
-      cost: this.calculateCost(inputTokens, outputTokens, config.model),
+      cost: reportedCost ?? this.calculateCost(inputTokens, outputTokens, config.model),
       latencyMs,
       model: config.model,
       provider: 'openrouter',

@@ -19,6 +19,15 @@ export interface ModelAssignment {
 }
 
 /**
+ * Resolve the env-configured Azure OpenAI deployment name, tolerating both the
+ * documented `AZURE_OPENAI_API_DEPLOYMENT_NAME` and the shorter
+ * `AZURE_OPENAI_DEPLOYMENT_NAME` that appears in some local `.env` files.
+ */
+export function getAzureDeploymentName(): string | undefined {
+  return process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || process.env.AZURE_OPENAI_DEPLOYMENT_NAME || undefined;
+}
+
+/**
  * Infrastructure model assignments (direct APIs)
  */
 export const INFRASTRUCTURE_MODELS: Record<string, ModelAssignment> = {
@@ -27,12 +36,15 @@ export const INFRASTRUCTURE_MODELS: Record<string, ModelAssignment> = {
     model: 'gemini-3-pro-preview',
     provider: 'google',
     fallbackProvider: 'openrouter',
-    fallbackModel: 'google/gemini-3-pro-preview',
-    description: 'Primary debate adjudicator - Gemini 3.0 Pro for excellent reasoning and massive context',
+    // OpenRouter retired the `google/gemini-3-pro-preview` slug; 3.1 Pro is the
+    // current generation. This is the slug used when the direct Google API key
+    // is absent and the OpenRouter fallback triggers.
+    fallbackModel: 'google/gemini-3.1-pro-preview',
+    description: 'Primary debate adjudicator - Gemini 3 Pro for excellent reasoning and massive context',
   },
   factChecker: {
     role: 'fact-checker',
-    model: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME || 'gpt-4o-mini',
+    model: getAzureDeploymentName() || 'gpt-4o-mini',
     provider: 'openai',
     fallbackProvider: 'openrouter',
     fallbackModel: 'openai/gpt-5.1',
@@ -269,6 +281,22 @@ export function getDebaterModelsByTier(tier?: 'frontier' | 'advanced' | 'capable
  */
 export function isValidDebaterModel(modelId: string): boolean {
   return DEBATER_MODELS.some(m => m.id === modelId);
+}
+
+/**
+ * Map a model identifier to the slug OpenRouter expects when the OpenRouter
+ * fallback is triggered. Infrastructure models are configured with provider-
+ * native IDs (e.g. `gemini-3-pro-preview`) that OpenRouter does not recognize;
+ * this resolves them to their declared `fallbackModel` slug. Models that are
+ * already OpenRouter slugs (contain a `/`) are returned unchanged.
+ */
+export function getOpenRouterFallbackModel(model: string): string {
+  for (const assignment of Object.values(INFRASTRUCTURE_MODELS)) {
+    if (assignment.model === model && assignment.fallbackModel) {
+      return assignment.fallbackModel;
+    }
+  }
+  return model;
 }
 
 /**
