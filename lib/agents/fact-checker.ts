@@ -238,10 +238,14 @@ If no verifiable claims are found, return an empty array: []
  * Verify a claim using Tavily Search API and LLM reasoning
  */
 async function verifyClaim(claim: Claim, debateId?: string): Promise<FactCheckResult> {
-  // Search for evidence using Tavily
-  const searchResults = await searchTavily(claim.text)
-  
-  if (searchResults.length === 0) {
+  // Gather evidence from web search (Tavily -> Firecrawl) and the Google Fact
+  // Check Tools API (authoritative publisher ratings) in parallel.
+  const [searchResults, factCheckReviews] = await Promise.all([
+    searchWeb(claim.text),
+    queryGoogleFactCheck(claim.text),
+  ])
+
+  if (searchResults.length === 0 && factCheckReviews.length === 0) {
     return {
       claim: claim.text,
       verdict: 'unverifiable',
@@ -250,10 +254,10 @@ async function verifyClaim(claim: Claim, debateId?: string): Promise<FactCheckRe
       reasoning: 'No relevant sources found to verify this claim.',
     }
   }
-  
-  // Use LLM to analyze search results and determine verdict
-  const verdict = await analyzeEvidence(claim, searchResults, debateId)
-  
+
+  // Use LLM to analyze combined evidence and determine verdict
+  const verdict = await analyzeEvidence(claim, searchResults, factCheckReviews, debateId)
+
   return verdict
 }
 
@@ -302,12 +306,101 @@ async function searchTavily(query: string): Promise<Array<{ url: string; snippet
 }
 
 /**
+ * Web search with Tavily as primary and Firecrawl as fallback. Returns an
+ * empty list only when both are unavailable or yield nothing.
+ */
+export async function searchWeb(query: string): Promise<Array<{ url: string; snippet: string; title?: string }>> {
+  const tavily = await searchTavily(query)
+  if (tavily.length > 0) return tavily
+  return await searchFirecrawl(query)
+}
+
+/**
+ * Firecrawl search fallback. Used when Tavily returns nothing or is down.
+ */
+async function searchFirecrawl(query: string): Promise<Array<{ url: string; snippet: string; title?: string }>> {
+  const key = process.env.FIRECRAWL_API_KEY
+  if (!key) return []
+
+  try {
+    const response = await fetch('https://api.firecrawl.dev/v1/search', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, limit: 3 }),
+      signal: AbortSignal.timeout(15000),
+    })
+
+    if (!response.ok) {
+      console.error('[Fact Checker] Firecrawl search error:', response.status)
+      return []
+    }
+
+    const data = await response.json()
+    return (data.data || []).map((result: any) => ({
+      url: result.url,
+      snippet: (result.description || result.markdown || '').slice(0, 500),
+      title: result.title,
+    }))
+  } catch (error) {
+    console.error('[Fact Checker] Error calling Firecrawl:', error)
+    return []
+  }
+}
+
+export interface FactCheckReview {
+  text: string
+  claimant?: string
+  rating: string
+  publisher: string
+  url: string
+}
+
+/**
+ * Query the Google Fact Check Tools API for existing publisher fact-checks of a
+ * claim. This is a fast, free authority layer: it surfaces ratings from
+ * established fact-checking organizations to complement web search evidence.
+ */
+export async function queryGoogleFactCheck(query: string): Promise<FactCheckReview[]> {
+  const key = process.env.GOOGLE_FACTCHECK_API_KEY
+  if (!key) return []
+
+  try {
+    const url = `https://factchecktools.googleapis.com/v1alpha1/claims:search?query=${encodeURIComponent(query)}&languageCode=en&pageSize=3&key=${encodeURIComponent(key)}`
+    const response = await fetch(url, { signal: AbortSignal.timeout(12000) })
+
+    if (!response.ok) {
+      console.error('[Fact Checker] Google Fact Check API error:', response.status)
+      return []
+    }
+
+    const data = await response.json()
+    const reviews: FactCheckReview[] = []
+    for (const claim of data.claims || []) {
+      for (const review of claim.claimReview || []) {
+        reviews.push({
+          text: claim.text || '',
+          claimant: claim.claimant,
+          rating: review.textualRating || 'unrated',
+          publisher: review.publisher?.name || review.publisher?.site || 'unknown',
+          url: review.url || '',
+        })
+      }
+    }
+    return reviews.slice(0, 3)
+  } catch (error) {
+    console.error('[Fact Checker] Error calling Google Fact Check API:', error)
+    return []
+  }
+}
+
+/**
  * Analyze evidence and determine verdict using LLM
  * Uses the configured Azure OpenAI deployment for high precision
  */
 async function analyzeEvidence(
   claim: Claim,
   searchResults: Array<{ url: string; snippet: string; title?: string }>,
+  factCheckReviews: FactCheckReview[],
   debateId?: string
 ): Promise<FactCheckResult> {
   const llmClient = getLLMClient()
@@ -317,12 +410,28 @@ async function analyzeEvidence(
     provider: factCheckerConfig.provider,
     model: factCheckerConfig.model,
     temperature: 0.2,
-    maxTokens: 500,
+    // Generous budget: reasoning models (e.g. GPT-5 series) spend output tokens
+    // on internal thinking, so a small budget can yield an empty/JSON-less reply.
+    maxTokens: 1500,
   }
   
   const evidenceText = searchResults
     .map((result, i) => `[Source ${i + 1}] ${result.title || result.url}\n${result.snippet}`)
     .join('\n\n')
+
+  const reviewText = factCheckReviews
+    .map((r, i) => `[Fact-check ${i + 1}] ${r.publisher} rated this "${r.rating}"${r.claimant ? ` (claim by ${r.claimant})` : ''}: ${r.text}`)
+    .join('\n\n')
+
+  // Fact-check reviews are stored as first-class sources alongside web results.
+  const reviewSources = factCheckReviews
+    .filter(r => r.url)
+    .map(r => ({
+      url: r.url,
+      snippet: `${r.publisher} rated "${r.rating}": ${r.text}`.slice(0, 500),
+      title: `Fact-check by ${r.publisher}`,
+    }))
+  const allSources = [...searchResults, ...reviewSources]
   
   const prompt = `
 You are a fact-checking expert. Analyze the following claim against the provided evidence.
@@ -331,10 +440,11 @@ CLAIM:
 "${claim.text}"
 
 EVIDENCE FROM SEARCH:
-${evidenceText}
+${evidenceText || '(no web search evidence)'}
 
+${reviewText ? `PUBLISHER FACT-CHECKS (authoritative ratings from established fact-checking organizations):\n${reviewText}\n` : ''}
 TASK:
-Determine if the claim is TRUE, FALSE, or UNVERIFIABLE based on the evidence.
+Determine if the claim is TRUE, FALSE, or UNVERIFIABLE based on the evidence. When publisher fact-checks are present, weigh them heavily.
 
 GUIDELINES:
 - TRUE: The evidence clearly supports the claim
@@ -375,7 +485,7 @@ OUTPUT FORMAT (JSON):
       claim: claim.text,
       verdict: analysis.verdict as FactCheckVerdict,
       confidence: analysis.confidence,
-      sources: searchResults,
+      sources: allSources,
       reasoning: analysis.reasoning,
     }
   } catch (error) {
@@ -394,7 +504,7 @@ OUTPUT FORMAT (JSON):
       claim: claim.text,
       verdict: 'unverifiable',
       confidence: 0.5,
-      sources: searchResults,
+      sources: allSources,
       reasoning: 'Error analyzing evidence.',
     }
   }

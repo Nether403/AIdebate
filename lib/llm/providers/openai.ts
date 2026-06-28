@@ -76,18 +76,41 @@ export class OpenAIProvider extends BaseLLMProvider {
     this.azureOpenAIEndpoint = options.azureOpenAIEndpoint;
   }
 
+  /**
+   * GPT-5 series and o-series reasoning deployments reject `max_tokens`,
+   * `temperature`, and `top_p`. They require `max_completion_tokens` and only
+   * support default sampling. Detect them by deployment/model name.
+   */
+  private isReasoningModel(config: LLMConfig): boolean {
+    const name = (this.azureOpenAIApiDeploymentName || config.model || '').toLowerCase();
+    return /^(o[1-9]|gpt-5)/.test(name);
+  }
+
   private createModel(config: LLMConfig, streaming = false): AzureChatOpenAI {
-    return new AzureChatOpenAI({
+    const base = {
       azureOpenAIApiKey: this.apiKey,
       azureOpenAIApiInstanceName: this.azureOpenAIApiInstanceName,
       azureOpenAIApiDeploymentName: this.azureOpenAIApiDeploymentName || config.model,
       azureOpenAIApiVersion: this.azureOpenAIApiVersion,
       azureOpenAIEndpoint: this.azureOpenAIEndpoint,
+      streaming,
+      timeout: config.timeout || this.timeout,
+    };
+
+    if (this.isReasoningModel(config)) {
+      // Pass the token budget as max_completion_tokens and omit temperature/top_p
+      // so the request is accepted by GPT-5 / o-series deployments.
+      return new AzureChatOpenAI({
+        ...base,
+        modelKwargs: config.maxTokens ? { max_completion_tokens: config.maxTokens } : {},
+      });
+    }
+
+    return new AzureChatOpenAI({
+      ...base,
       temperature: config.temperature ?? 0.7,
       maxTokens: config.maxTokens,
       topP: config.topP,
-      streaming,
-      timeout: config.timeout || this.timeout,
     });
   }
 
