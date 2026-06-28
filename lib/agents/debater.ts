@@ -103,7 +103,10 @@ async function generateDebaterTurn(
   
   const config: LLMConfig = getDebaterLLMConfig(model.modelId, {
     temperature: 0.7,
-    maxTokens: 2000,
+    // Generous budget: reasoning debater models (e.g. GLM-4.6) spend a large
+    // share of output tokens on hidden reasoning before emitting the speech; a
+    // tight budget can truncate the response to an empty/unusable turn.
+    maxTokens: 4000,
   })
   
   try {
@@ -178,7 +181,15 @@ function generateRCRPrompt(
   let retryFeedback = ''
   if (state.retryCount > 0) {
     const metadata = state.metadata as any
-    if (metadata?.wordLimitViolation) {
+    if (metadata?.speechTooShort) {
+      retryFeedback = `
+⚠️ RETRY ${state.retryCount}/3: Your previous response had no usable speech (${metadata.actualWordCount} words).
+- You MUST output your full argument INSIDE <speech>...</speech> tags.
+- The speech must be at least ${metadata.minWords} words (target ${Math.min(200, state.wordLimitPerTurn)}-${state.wordLimitPerTurn}).
+- Do not spend your entire response on reflection/critique; the <speech> is required.
+
+`
+    } else if (metadata?.wordLimitViolation) {
       retryFeedback = `
 ⚠️ RETRY ${state.retryCount}/3: Your previous response exceeded the word limit!
 - You wrote: ${metadata.actualWordCount} words

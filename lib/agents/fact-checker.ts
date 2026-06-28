@@ -11,6 +11,7 @@ import type { FactCheckVerdict } from '@/types'
 import type { LLMConfig } from '@/types/llm'
 import { getModelConfig } from '@/lib/llm/model-config'
 import { recordLLMProviderCall } from '@/lib/llm/telemetry'
+import { classifyTurnLength, MIN_SPEECH_WORDS, DEFAULT_MAX_TURN_RETRIES } from './turn-length'
 
 export interface Claim {
   text: string
@@ -47,52 +48,61 @@ export async function factCheckerNode(state: DebateState): Promise<Partial<Debat
     }
   }
   
-  // FIRST: Validate word count (always enforced, regardless of fact-check mode)
+  // FIRST: Validate turn length (always enforced, regardless of fact-check mode).
+  // Too short (e.g. an empty/truncated speech from a reasoning model that spent
+  // its whole budget on hidden reasoning) is retried, then fails the debate;
+  // too long is retried, then truncated.
   const actualWordCount = countWords(state.currentTurnDraft.speech)
   const wordLimit = state.wordLimitPerTurn
-  
-  if (actualWordCount > wordLimit) {
-    const retryCount = state.retryCount + 1
-    
-    console.warn(`[Fact Checker] Word limit exceeded: ${actualWordCount} words (max: ${wordLimit})`)
-    console.warn(`[Fact Checker] Retry attempt ${retryCount}/3`)
-    
-    // After 3 retries, truncate instead of rejecting
-    if (retryCount >= 3) {
-      console.warn(`[Fact Checker] Max retries reached. Truncating speech to ${wordLimit} words.`)
-      const truncated = truncateToWordLimit(state.currentTurnDraft.speech, wordLimit)
-      
-      return {
-        currentTurnDraft: {
-          ...state.currentTurnDraft,
-          speech: truncated,
-          wordCount: countWords(truncated),
-        },
-        currentFactCheckResults: [],
-        shouldRejectTurn: false,
-        retryCount: 0,
-        metadata: {
-          ...state.metadata,
-          wordLimitEnforced: true,
-          originalWordCount: actualWordCount,
-        },
-      }
-    }
-    
-    // Reject and retry
+  const nextRetryCount = state.retryCount + 1
+  const lengthDecision = classifyTurnLength(actualWordCount, wordLimit, nextRetryCount)
+
+  if (lengthDecision.action === 'fail') {
+    // Do not silently persist an unusable turn; fail the debate with a diagnostic.
+    throw new Error(
+      `${state.currentSpeaker} produced an unusable speech (${actualWordCount} words, min ${MIN_SPEECH_WORDS}) after ${nextRetryCount} attempts`
+    )
+  }
+
+  if (lengthDecision.action === 'truncate') {
+    console.warn(`[Fact Checker] Max retries reached. Truncating speech to ${wordLimit} words.`)
+    const truncated = truncateToWordLimit(state.currentTurnDraft.speech, wordLimit)
     return {
+      currentTurnDraft: {
+        ...state.currentTurnDraft,
+        speech: truncated,
+        wordCount: countWords(truncated),
+      },
       currentFactCheckResults: [],
-      shouldRejectTurn: true,
-      retryCount,
+      shouldRejectTurn: false,
+      retryCount: 0,
       metadata: {
         ...state.metadata,
-        wordLimitViolation: true,
-        actualWordCount,
-        wordLimit,
+        wordLimitEnforced: true,
+        originalWordCount: actualWordCount,
       },
     }
   }
-  
+
+  if (lengthDecision.action === 'retry') {
+    const tooShort = lengthDecision.kind === 'too_short'
+    console.warn(
+      `[Fact Checker] Turn ${tooShort ? 'too short' : 'exceeds word limit'}: ${actualWordCount} words (limit ${wordLimit}, min ${MIN_SPEECH_WORDS}). Retry ${nextRetryCount}/${DEFAULT_MAX_TURN_RETRIES}`
+    )
+    return {
+      currentFactCheckResults: [],
+      shouldRejectTurn: true,
+      retryCount: nextRetryCount,
+      metadata: {
+        ...state.metadata,
+        wordLimitViolation: !tooShort,
+        speechTooShort: tooShort,
+        actualWordCount,
+        wordLimit,
+        minWords: MIN_SPEECH_WORDS,
+      },
+    }
+  }
   // Skip fact-checking if mode is 'off'
   if (state.factCheckMode === 'off') {
     console.log('[Fact Checker] Fact-checking disabled, skipping')
