@@ -5,6 +5,7 @@ import type { DebateConfig } from './config'
 import { DebateTranscriptManager } from './transcript'
 import type { DebateStatus, DebateSide } from '@/types'
 import { getModelConfig } from '@/lib/llm/model-config'
+import { DEBATER_PROMPT_VERSION } from '@/lib/prompts/registry'
 
 /**
  * Debate State - Current state of an active debate
@@ -89,7 +90,7 @@ export class DebateEngine {
       judgeModel: judgeConfig.model,
       factCheckerProvider: factCheckerConfig.provider,
       factCheckerModel: factCheckerConfig.model,
-      promptVersion: 'debate-rcr-v1',
+      promptVersion: DEBATER_PROMPT_VERSION,
       generationParams: {
         totalRounds: config.totalRounds,
         wordLimitPerTurn: config.wordLimitPerTurn,

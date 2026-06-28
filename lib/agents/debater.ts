@@ -13,6 +13,7 @@ import type { DebateState } from './graph'
 import type { DebateSide } from '@/types'
 import type { LLMConfig } from '@/types/llm'
 import { recordLLMProviderCall } from '@/lib/llm/telemetry'
+import { DEBATER_PROMPT_VERSION } from '@/lib/prompts/registry'
 
 export interface DebaterTurn {
   reflection: string
@@ -120,7 +121,7 @@ async function generateDebaterTurn(
       stage: `debater-${side}`,
       config,
       response,
-      promptVersion: 'debate-rcr-v1',
+      promptVersion: DEBATER_PROMPT_VERSION,
     })
     
     // Parse RCR phases from response
@@ -147,7 +148,7 @@ async function generateDebaterTurn(
       debateId: state.debateId,
       stage: `debater-${side}`,
       config,
-      promptVersion: 'debate-rcr-v1',
+      promptVersion: DEBATER_PROMPT_VERSION,
       status: 'error',
       error,
     })

@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm'
 import { type ConsensusVerdict, type JudgeVerdict } from '@/lib/agents/judge'
 import { buildJudgeFailureErrorState, buildJudgeFailureEvaluationValues } from '@/lib/debate/judge-failure'
 import { recordLLMProviderCall } from '@/lib/llm/telemetry'
+import { JUDGE_SCHEMA_VERSION } from '@/lib/prompts/registry'
 
 type JudgeProvider = 'openai' | 'google' | 'anthropic' | 'xai' | 'openrouter'
 
@@ -328,7 +329,7 @@ export async function persistJudgeVerdict(
     rawResponse: null,
     errorMessage: null,
     promptVersion,
-    schemaVersion: 'judge-v1',
+    schemaVersion: JUDGE_SCHEMA_VERSION,
     consensus: null,
     tiebreakerUsed: null,
   })
@@ -365,7 +366,7 @@ export async function persistConsensusVerdict(
     rawResponse: null,
     errorMessage: null,
     promptVersion,
-    schemaVersion: 'judge-v1',
+    schemaVersion: JUDGE_SCHEMA_VERSION,
     consensus: verdict.consensus,
     tiebreakerUsed: verdict.tiebreaker_used,
   })
