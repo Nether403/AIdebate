@@ -102,14 +102,27 @@ export async function runBenchmark(config: BenchmarkRunConfig): Promise<Benchmar
 
   try {
     for (const debateConfig of config.debates) {
-      const session = await engine.initializeDebate({
-        ...debateConfig,
-        benchmarkRunId,
-      })
+      // Isolate each debate: a single failed/evaluation_failed/throwing debate
+      // must not abort the whole run. executeDebate persists the failure state
+      // with diagnostics; we log and continue so remaining debates still run and
+      // the run summary reflects every debate's actual status.
+      let debateId: string | undefined
+      try {
+        const session = await engine.initializeDebate({
+          ...debateConfig,
+          benchmarkRunId,
+        })
 
-      debateIds.push(session.id)
-      await engine.startDebate(session.id)
-      await executeDebate(session.id)
+        debateId = session.id
+        debateIds.push(session.id)
+        await engine.startDebate(session.id)
+        await executeDebate(session.id)
+      } catch (error) {
+        console.error(
+          `[Benchmark] Debate ${debateId ?? '(initialization failed)'} did not complete:`,
+          error instanceof Error ? error.message : error
+        )
+      }
     }
 
     const finalDebates = debateIds.length > 0
