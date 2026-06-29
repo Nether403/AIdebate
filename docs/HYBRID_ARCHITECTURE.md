@@ -51,9 +51,9 @@ Every provider call is recorded in `llm_provider_calls` with stage, provider, re
 - **OpenRouter debater calls** capture real cost via OpenRouter's usage accounting.
 - `estimateDebateCost()` provides a rough *a priori* estimate for planning; it is an approximation, not a measurement.
 
-**Known cost-telemetry gaps (token/latency unaffected, only the cost estimate):**
+**Cost-estimate caveats (token/latency unaffected, only the cost estimate):**
 
-- OpenRouter **judge/tiebreaker** calls currently record `$0` — the usage-cost accounting wired for the debater stage is not threaded through the judge stage.
+- Cost comes from OpenRouter's `usage.cost`. **BYOK-routed models report `$0`** — OpenRouter does not bill them to credits (the spend lands on the upstream provider account). This is expected behavior, not a defect, and applies to whichever role (debater or judge) happens to use a BYOK model. In a mixed run, non-BYOK models report real cost while BYOK models report `$0`.
 - **Azure** model costs display `$0` because there is no pricing entry for the Azure deployment names.
 
 See `docs/KNOWN_LIMITATIONS.md`.
