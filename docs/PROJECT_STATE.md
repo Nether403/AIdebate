@@ -1,12 +1,33 @@
 # Project State
 
-Last updated: 2026-06-28
+Last updated: 2026-06-29
 
 ## Current Status
 
 AI Debate Arena is under revival as a focused LLM debate benchmarking and alignment-research workbench. It is not production-ready.
 
 `docs/REVIVAL_ROADMAP.md` is the source of truth for product direction. Older product, deployment, gamification, and production-readiness documents should be treated as stale unless they are explicitly updated to match the roadmap.
+
+## 2026-06-29 Judge-Parse Robustness and Model-Slug Drift
+
+A Grok-judged debate in the prior live run came back `evaluation_failed`. Investigation showed the root cause was not the judge parser but a retired OpenRouter slug (`x-ai/grok-4.1-fast` now 404s with a deprecation notice). Both the parser and the registry were hardened.
+
+- **Judge parsing hardened defensively** (`lib/agents/judge.ts`): the verdict Zod schema now normalizes cross-model quirks rather than rejecting them — winner casing/punctuation (`"Pro"`, `"CON."` → `pro`/`con`), score coercion (numeric strings, `"8/10"`, out-of-range clamped to 0–10, `NaN` → 0), scores emitted at the top level instead of under a `scores` key, `flagged_fallacies` arriving as `null`/non-array, and free-form fallacy fields. `justification` minimum relaxed from 100 chars to non-empty. New exported `extractJsonObject()` strips code fences and grabs the outermost `{...}` so prose around the JSON no longer breaks parsing. Covered by 7 new tests in `lib/agents/__tests__/judge-parse-failure.test.ts`.
+- **Stale model slugs corrected** (`lib/llm/model-config.ts`, `lib/llm/debater-models.ts`): validated `DEBATER_MODELS` and infrastructure fallbacks against the live OpenRouter catalogue. Fixed `gemini-3-pro-preview` → `gemini-3.1-pro-preview`, `grok-4.1-fast` → `grok-4.3`, `grok-4-fast` → `grok-4.20`, `gemini-2.5-flash-preview-09-2025` → `gemini-3.5-flash`; removed the retired `tongyi-deepresearch-30b-a3b`; repointed the moderator OpenRouter fallback to `grok-4.3`. All 23 dispatchable slugs now resolve live.
+- **`models:validate` CLI added** (`scripts/validate-models.ts`, `npm run models:validate`): cross-checks every OpenRouter slug the app can dispatch (debater ids + infra OpenRouter fallbacks) against the live `/models` catalogue and exits non-zero on drift, so this class of failure is caught proactively (CI / pre-benchmark) instead of mid-run. Skips cleanly when `OPENROUTER_API_KEY` is absent.
+
+Verified: `npm run typecheck` clean, `npm test` 94 passing, `npm run lint` 0 errors, `npm run models:validate` reports all slugs live.
+
+### Live end-to-end validation (2026-06-29)
+
+The slug fix was confirmed against the original symptom with a full live debate on a disposable Neon branch: Claude Sonnet 4.5 (Pro) vs GPT-5.1 (Con), motion "AI systems should be open-source by default", 3 rounds, fact-checking in `standard` mode, judge **overridden to `openrouter` / `x-ai/grok-4.3`**.
+
+- **Grok-4.3 judge: resolved.** Debate `completed`, `winner=con`, `error_state=null`. All three judge evaluations (`pro_first`, `con_first`, `consensus`) parsed cleanly (`parse_status=parsed`) via `x-ai/grok-4.3`. The original `evaluation_failed` symptom did not reproduce. Both orders independently picked `con`, `consensus=true`, no tiebreaker, no position bias.
+- **Fact-checking enabled, at scale: confirmed.** This was previously unverified end-to-end. 25 claim-level fact-checks persisted (11 true, 1 false, 13 unverifiable), **every one with ≥1 source**. The single-debate export contained all 3 evaluations and all 25 verdicts with sources.
+- **Turn handling:** all 6 turns accepted within the 250-word limit; word-limit retries fired and truncated as designed; no duplicate turns.
+- **Cost-telemetry note (not a defect):** OpenRouter **judge** calls recorded `$0` despite ~5.5k tokens per evaluation, while OpenRouter **debater** calls captured cost. The judge captures cost identically to debaters (same client, `response.cost` from OpenRouter `usage.cost`); the `$0` is because the judged model (grok-4.3) is BYOK-routed on the OpenRouter account, which OpenRouter does not bill to credits and reports as `$0`. Tracked in `docs/KNOWN_LIMITATIONS.md`.
+
+
 
 ## 2026-06-29 Alignment Instrumentation
 
@@ -62,12 +83,12 @@ Fixes landed on branch `fix/debate-loop-reliability` (verified by 63 passing uni
 
 - The configured Gemini judge is unusable in the current environment: there is no `GOOGLE_API_KEY` for the direct path, and the OpenRouter Gemini route is BYOK-linked to a Google project with billing disabled. The judge must be pointed at a model the available keys can serve (e.g. a first-party-served OpenRouter slug) until Gemini access is restored.
 - Accepted turns have no minimum-length enforcement: a model that returns an empty speech produces a persisted 0-word turn that still counts toward a completed debate. The moderator's minimum-length check is only a warning and is not enforced in the fact-checker gate.
-- A live debate with fact-checking enabled (`standard`/`strict`) has not yet been exercised end-to-end; the verification runs used `factCheckMode: off`. Tavily + Azure fact-checker wiring is therefore unconfirmed on the current schema.
+- A live debate with fact-checking enabled was confirmed end-to-end on 2026-06-29 (`standard` mode: 25 sourced claim checks on a 3-round grok-4.3-judged debate). `strict` mode was exercised in the earlier big live run. Tavily + Azure fact-checker wiring is therefore confirmed on the current schema.
 - `prompt_templates` now has a write path (`lib/prompts/registry.ts` + `prompts:seed` CLI, also run by `db:seed`). Agents source prompt/schema version IDs from the registry, and persisted `promptVersion` values (`debate-rcr-v1`, `fact-check-v1`) link back to registry rows via `${templateId}-${version}`.
 - `topic_sets`/`topic_set_topics` now have write paths (`lib/topics/topic-sets.ts` + `scripts/create-topic-set.ts`), and benchmark debate configs may reference a `topicSetId` to draw topics from a set round-robin.
 - There is still no partial unique constraint on accepted turns (roadmap calls for idempotency to avoid duplicate turns on retry).
 - Drizzle snapshot chain pre-dates the migration rename and remains nonlinear; this is only risky the next time `drizzle-kit generate` is run.
-- Model registry drift: `DEBATER_MODELS` and the infrastructure model slugs can fall out of sync with OpenRouter's current catalog (the retired `gemini-3-pro-preview` slug is one example). Validate slugs against the live OpenRouter catalog periodically.
+- Model registry drift: `DEBATER_MODELS` and the infrastructure model slugs can fall out of sync with OpenRouter's current catalog. Run `npm run models:validate` to cross-check every dispatchable slug against the live OpenRouter catalogue; it exits non-zero on drift and is suitable for CI / pre-benchmark gating.
 
 ## Phase 1 Cleanup Follow-Up (2026-05-11)
 

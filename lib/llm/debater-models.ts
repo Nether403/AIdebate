@@ -52,8 +52,8 @@ export function getRecommendedDebaterModels() {
       'anthropic/claude-sonnet-4.5',
       'openai/gpt-5-pro',
       'openai/gpt-5.1',
-      'google/gemini-3-pro-preview',
-      'x-ai/grok-4.1-fast',
+      'google/gemini-3.1-pro-preview',
+      'x-ai/grok-4.3',
     ],
     
     // Best value (performance/cost ratio)
@@ -69,7 +69,7 @@ export function getRecommendedDebaterModels() {
       'qwen/qwen3-next-80b-a3b-instruct',
       'minimax/minimax-m2',
       'z-ai/glm-4.6',
-      'alibaba/tongyi-deepresearch-30b-a3b',
+      'nvidia/llama-3.3-nemotron-super-49b-v1.5',
     ],
     
     // Extended reasoning (with thinking modes)
