@@ -1,479 +1,112 @@
 # Hybrid LLM Architecture
 
-## Overview
+AI Debate Arena uses a **hybrid model-routing strategy**: infrastructure roles (judge, fact-checker) use **direct provider APIs** for performance, while debaters use **OpenRouter** for breadth. Every provider has an automatic OpenRouter fallback. The implementation source of truth is `lib/llm/model-config.ts` and `lib/llm/client.ts`.
 
-AI Debate Arena uses a **hybrid architecture** that combines direct API access for infrastructure roles with OpenRouter for debater models. This approach optimizes for performance, cost, and flexibility.
+## Roles at a glance
 
-## Architecture Diagram
+```text
+Infrastructure (direct APIs, with OpenRouter fallback)
+  ├─ Judge        → Google Gemini (direct)        fallback → OpenRouter
+  ├─ Fact-Checker → Azure OpenAI deployment        fallback → OpenRouter
+  └─ Moderator    → rule-based / lightweight       (no heavy LLM dependency)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    AI Debate Arena                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Infrastructure Roles (Direct APIs)                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │                                                      │  │
-│  │  Judge Agent                                         │  │
-│  │  ├─ Primary: Gemini 3.0 Pro (Google API)           │  │
-│  │  └─ Fallback: OpenRouter                           │  │
-│  │                                                      │  │
-│  │  Fact-Checker Agent                                  │  │
-│  │  ├─ Primary: GPT-5.1 (OpenAI API)                  │  │
-│  │  └─ Fallback: OpenRouter                           │  │
-│  │                                                      │  │
-│  │  Moderator Agent                                     │  │
-│  │  └─ Rule-based (No LLM)                            │  │
-│  │                                                      │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                                                             │
-│  Debater Roles (OpenRouter)                               │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │                                                      │  │
-│  │  Pro Debater & Con Debater                          │  │
-│  │  └─ OpenRouter (200+ models)                       │  │
-│  │     ├─ Claude 4.5 Sonnet                           │  │
-│  │     ├─ GPT-5.1                                     │  │
-│  │     ├─ Gemini 3.0 Pro                              │  │
-│  │     ├─ Grok 4.1                                    │  │
-│  │     ├─ Llama 4 405B                                │  │
-│  │     ├─ Qwen 3 72B                                  │  │
-│  │     └─ ... and 190+ more                           │  │
-│  │                                                      │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+Debaters (OpenRouter)
+  └─ Pro + Con    → ~20 curated reasoning models across providers
 ```
 
-## Role Assignments
+## Infrastructure roles
 
-### Infrastructure Roles (Direct APIs)
+### Judge — Google Gemini (direct), configurable per run
 
-#### Judge Agent
-- **Model:** Gemini 3.0 Pro (`gemini-3-pro-preview`)
-- **Provider:** Google API (direct)
-- **Why:** 
-  - Excellent reasoning capabilities
-  - Massive 1M token context window
-  - Cost-effective ($1.25/M input, $5.00/M output)
-  - Low latency for critical path
-- **Fallback:** OpenRouter (`google/gemini-3-pro-preview`)
-- **Cost per debate:** ~$0.11
+- **Model:** taken from the `GEMINI_MODEL` env var (default `gemini-3.1-flash-lite`), via the direct Google API using `GEMINI_API_KEY`.
+- **Fallback:** OpenRouter at `google/${GEMINI_MODEL}`.
+- **Configurable as an experiment variable.** A debate or benchmark config may set `judgeProvider` / `judgeModel`, resolved by `resolveJudgeConfig()`. This is what enables **judge-strength experiments** (e.g. a deliberately weaker judge over stronger debaters) and lets the judge be pointed at any provider — including an OpenRouter slug such as `x-ai/grok-4.3`.
+- **Bias mitigation:** every debate is judged twice (Pro-first and Con-first); a tiebreaker (defaulting to the primary judge model) resolves disagreement. Consensus and parse status are persisted.
 
-#### Fact-Checker Agent
-- **Model:** GPT-5.1 (`gpt-5.1`)
-- **Provider:** OpenAI API (direct)
-- **Why:**
-  - High precision for fact validation
-  - Excellent structured output
-  - Reliable search integration
-  - Fast response times
-- **Fallback:** OpenRouter (`openai/gpt-5.1`)
-- **Cost per claim:** ~$0.02
+### Fact-Checker — Azure OpenAI
 
-#### Moderator Agent
-- **Implementation:** Rule-based (no LLM)
-- **Why:**
-  - Simple rule enforcement doesn't need AI
-  - Zero latency
-  - Zero cost
-  - 100% reliable
-- **Responsibilities:**
-  - Round announcements
-  - Word count validation
-  - Turn structure validation
-  - State management
+- **Model:** the Azure deployment named by `AZURE_OPENAI_FACTCHECK_DEPLOYMENT_NAME` (e.g. `gpt-5.4-mini`), falling back to `AZURE_OPENAI_DEPLOYMENT_NAME`, then a generic model name.
+- **Fallback:** OpenRouter (`openai/gpt-5.1`).
+- **Search backend:** claims are validated against live web search (Tavily), with sources retained on each verdict.
+- **Modes:** `standard` (flag and continue), `strict` (reject false claims and force a retry), `off`.
 
-### Debater Roles (OpenRouter)
+### Moderator — rule-based
 
-#### Pro & Con Debaters
-- **Provider:** OpenRouter (all models)
-- **Why:**
-  - Access to 200+ models
-  - Easy model switching without code changes
-  - Unified API interface
-  - Automatic fallbacks
-  - Users can choose any model
-- **Available Tiers:**
-  - **Frontier:** Claude 4.5, GPT-5.1, Gemini 3.0, Grok 4.1
-  - **Advanced:** Claude 3.5, o1, Gemini 2.5, Llama 4 405B
-  - **Capable:** Qwen 3, DeepSeek, Mistral Large
+Turn/round/word-limit enforcement is rule-based and does not require a heavy LLM call. A lightweight provider entry exists in config for completeness, but moderation logic is deterministic.
 
-## Cost Analysis
+## Debater roles — OpenRouter
 
-### Per Debate Cost (3 rounds, 6 turns total)
+Debaters run through OpenRouter for a single API surface across providers and easy model switching. The curated set lives in `DEBATER_MODELS` (`lib/llm/model-config.ts`) — roughly 20 reasoning-capable models across Anthropic, OpenAI, Google, xAI, DeepSeek, Qwen/Alibaba, MoonshotAI, MiniMax, Z.AI, NVIDIA, and Deep Cogito, grouped into `frontier` / `advanced` / `capable` tiers. `getRecommendedDebaterModels()` exposes curated shortlists (best / value / budget / reasoning / coding).
 
-**Infrastructure (Direct APIs):**
-- Judge: $0.11 (Gemini 3.0 Pro)
-- Fact-Checker: $0.06 (3 claims × $0.02, GPT-5.1)
-- Moderator: $0.00 (rule-based)
-- **Total Infrastructure:** $0.17
+> Model slugs drift as providers deprecate and rename models. Run `npm run models:validate` to cross-check every dispatchable slug (debater IDs + infrastructure OpenRouter fallbacks) against the live OpenRouter catalogue; it exits non-zero on drift and is suitable for CI / pre-benchmark gating.
 
-**Debaters (OpenRouter, varies by model):**
-- Frontier models (Claude 4.5, GPT-5.1): ~$0.20
-- Advanced models (Claude 3.5, Llama 4): ~$0.12
-- Capable models (Qwen 3, DeepSeek): ~$0.05
+## Automatic fallback
 
-**Total per debate:** $0.22 - $0.37 (depending on debater models)
+`lib/llm/client.ts` attempts the configured provider first and falls back to OpenRouter on failure. Because infrastructure models are configured with provider-native IDs (e.g. a Gemini model name) that OpenRouter does not recognize, `getOpenRouterFallbackModel()` maps a model to its declared OpenRouter `fallbackModel` slug before the fallback call. Models that are already OpenRouter slugs (contain a `/`) pass through unchanged.
 
-### Cost Comparison: Hybrid vs OpenRouter-Only
+## Cost and telemetry
 
-**Hybrid Architecture (Current):**
-- Infrastructure: $0.17 (direct APIs)
-- Debaters: $0.20 (OpenRouter)
-- **Total:** $0.37
+Every provider call is recorded in `llm_provider_calls` with stage, provider, requested/actual model, tokens, latency, cost estimate, and success/error status (see `docs/DATA_SCHEMA.md`).
 
-**OpenRouter-Only (Alternative):**
-- Infrastructure: $0.20 (20% markup)
-- Debaters: $0.20 (OpenRouter)
-- **Total:** $0.40
+- **OpenRouter debater calls** capture real cost via OpenRouter's usage accounting.
+- `estimateDebateCost()` provides a rough *a priori* estimate for planning; it is an approximation, not a measurement.
 
-**Savings:** $0.03 per debate (8% reduction)
+**Cost-estimate caveats (token/latency unaffected, only the cost estimate):**
 
-**At 1000 debates/month:** $30 savings
+- Cost comes from OpenRouter's `usage.cost`. **BYOK-routed models report `$0`** — OpenRouter does not bill them to credits (the spend lands on the upstream provider account). This is expected behavior, not a defect, and applies to whichever role (debater or judge) happens to use a BYOK model. In a mixed run, non-BYOK models report real cost while BYOK models report `$0`.
+- **Azure** model costs display `$0` because there is no pricing entry for the Azure deployment names.
 
-## Performance Benefits
+See `docs/KNOWN_LIMITATIONS.md`.
 
-### Latency Comparison
-
-| Component | Direct API | OpenRouter | Difference |
-|-----------|-----------|------------|------------|
-| Judge | 800ms | 1000ms | +200ms |
-| Fact-Checker | 600ms | 750ms | +150ms |
-| Debater | N/A | 1200ms | Baseline |
-
-**Total latency savings per debate:** ~350ms
-
-### Reliability
-
-**Direct APIs:**
-- Full provider rate limits
-- No proxy layer failures
-- Provider-specific optimizations
-- Native SDK features
-
-**OpenRouter:**
-- Shared rate limits
-- Additional failure point
-- Unified interface (simpler)
-- Automatic model fallbacks
-
-## Implementation
-
-### Model Configuration
-
-```typescript
-// lib/llm/model-config.ts
-
-export const INFRASTRUCTURE_MODELS = {
-  judge: {
-    role: 'judge',
-    model: 'gemini-3-pro-preview',
-    provider: 'google',
-    fallbackProvider: 'openrouter',
-    fallbackModel: 'google/gemini-3-pro-preview',
-  },
-  factChecker: {
-    role: 'fact-checker',
-    model: 'gpt-5.1',
-    provider: 'openai',
-    fallbackProvider: 'openrouter',
-    fallbackModel: 'openai/gpt-5.1',
-  },
-  moderator: {
-    role: 'moderator',
-    // Rule-based, no LLM
-  },
-};
-
-export const DEBATER_MODELS = [
-  {
-    id: 'anthropic/claude-4.5-sonnet',
-    name: 'Claude 4.5 Sonnet',
-    provider: 'Anthropic',
-    tier: 'frontier',
-  },
-  // ... 200+ more models
-];
-```
-
-### Automatic Fallback
-
-```typescript
-// lib/llm/client.ts
-
-async generate(messages, config) {
-  try {
-    // Try primary provider
-    const provider = this.getProvider(config.provider);
-    return await provider.generate(messages, config);
-  } catch (error) {
-    // Automatic fallback to OpenRouter
-    if (config.provider !== 'openrouter' && this.isProviderAvailable('openrouter')) {
-      console.warn('Primary provider failed, using OpenRouter fallback');
-      const fallbackProvider = this.getProvider('openrouter');
-      return await fallbackProvider.generate(messages, { ...config, provider: 'openrouter' });
-    }
-    throw error;
-  }
-}
-```
-
-### Usage in Agents
-
-```typescript
-// Judge Agent
-import { getModelConfig } from '@/lib/llm/model-config';
-
-const judgeConfig = getModelConfig('judge');
-// { model: 'gemini-3-pro-preview', provider: 'google' }
-
-// Fact-Checker Agent
-const factCheckerConfig = getModelConfig('fact-checker');
-// { model: 'gpt-5.1', provider: 'openai' }
-
-// Debater Agent
-import { getDebaterLLMConfig } from '@/lib/llm/debater-models';
-
-const debaterConfig = getDebaterLLMConfig('anthropic/claude-4.5-sonnet');
-// { model: 'anthropic/claude-4.5-sonnet', provider: 'openrouter' }
-```
-
-## Environment Variables
+## Environment variables
 
 ```bash
-# Infrastructure (Direct APIs)
-GOOGLE_API_KEY=...        # For Judge (Gemini 3.0 Pro)
-OPENAI_API_KEY=...        # For Fact-Checker (GPT-5.1)
+# Judge (direct Google) + fallback
+GEMINI_API_KEY=...                          # direct Gemini access
+GEMINI_MODEL=gemini-3.1-flash-lite          # judge model (configurable)
+GEMINI_MODEL_BACKUP=...                      # optional secondary
 
-# Debaters + Fallback
-OPENROUTER_API_KEY=...    # For all debater models + infrastructure fallback
+# Fact-checker (Azure OpenAI) + fallback
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_ENDPOINT=...
+AZURE_OPENAI_API_VERSION=...
+AZURE_OPENAI_FACTCHECK_DEPLOYMENT_NAME=...   # e.g. gpt-5.4-mini
+AZURE_OPENAI_DEPLOYMENT_NAME=...             # default chat deployment
 
-# Optional (not used in hybrid architecture)
-ANTHROPIC_API_KEY=...
+# Fact-check search
+TAVILY_API_KEY=...
+
+# Debaters + universal fallback
+OPENROUTER_API_KEY=...
+
+# Optional direct providers (used where wired / available)
 XAI_API_KEY=...
+ANTHROPIC_API_KEY=...
 MISTRAL_API_KEY=...
 DEEPSEEK_API_KEY=...
 ```
 
-## Migration Guide
-
-### From Direct APIs Only
-
-**Before:**
-```typescript
-const config = {
-  provider: 'anthropic',
-  model: 'claude-4.5-sonnet',
-};
-```
-
-**After:**
-```typescript
-import { getDebaterLLMConfig } from '@/lib/llm/debater-models';
-
-const config = getDebaterLLMConfig('anthropic/claude-4.5-sonnet');
-// Automatically uses OpenRouter
-```
-
-### From OpenRouter Only
-
-**Before:**
-```typescript
-const config = {
-  provider: 'openrouter',
-  model: 'google/gemini-3-pro-preview',
-};
-```
-
-**After:**
-```typescript
-import { getModelConfig } from '@/lib/llm/model-config';
-
-// For infrastructure roles
-const judgeConfig = getModelConfig('judge');
-// Uses direct Google API with OpenRouter fallback
-
-// For debater roles
-const debaterConfig = getDebaterLLMConfig('google/gemini-3-pro-preview');
-// Still uses OpenRouter
-```
-
-## Monitoring
-
-### Cost Tracking
+## Using the config in code
 
 ```typescript
-// Track costs per role
-const costs = {
-  judge: calculateCost(inputTokens, outputTokens, 'gemini-3-pro-preview'),
-  factChecker: calculateCost(inputTokens, outputTokens, 'gpt-5.1'),
-  debater: calculateCost(inputTokens, outputTokens, debaterModel),
-};
+import { getModelConfig, resolveJudgeConfig } from '@/lib/llm/model-config'
+import { getDebaterLLMConfig, isValidDebaterModel } from '@/lib/llm/debater-models'
 
-// Log to monitoring system
-logCost({
-  debateId,
-  role,
-  model,
-  provider,
-  cost,
-  latencyMs,
-});
+// Infrastructure roles
+const factChecker = getModelConfig('fact-checker')         // Azure deployment + OpenRouter fallback
+const judge = resolveJudgeConfig({ provider: 'openrouter', // optional per-run override
+                                   model: 'x-ai/grok-4.3' })
+
+// Debater roles (validate first)
+if (!isValidDebaterModel(modelId)) throw new Error('Unknown debater model')
+const debater = getDebaterLLMConfig(modelId)               // always OpenRouter
 ```
 
-### Fallback Tracking
+## Why hybrid
 
-```typescript
-// Monitor fallback usage
-if (usedFallback) {
-  logFallback({
-    role,
-    primaryProvider,
-    fallbackProvider,
-    reason: error.message,
-  });
-}
-```
+- **Performance** for the latency-sensitive infrastructure path (direct APIs).
+- **Breadth** for debaters (one OpenRouter surface, ~20 curated models, easy switching).
+- **Reliability** via automatic OpenRouter fallback on any provider failure.
+- **Simplicity** via centralized configuration in `lib/llm/model-config.ts`.
 
-## Best Practices
-
-### 1. Always Use Model Config
-
-❌ **Don't:**
-```typescript
-const config = { provider: 'google', model: 'gemini-3-pro-preview' };
-```
-
-✅ **Do:**
-```typescript
-const config = getModelConfig('judge');
-```
-
-### 2. Validate Debater Models
-
-❌ **Don't:**
-```typescript
-const config = { provider: 'openrouter', model: userInput };
-```
-
-✅ **Do:**
-```typescript
-import { isValidDebaterModel, getDebaterLLMConfig } from '@/lib/llm/debater-models';
-
-if (!isValidDebaterModel(userInput)) {
-  throw new Error('Invalid model');
-}
-const config = getDebaterLLMConfig(userInput);
-```
-
-### 3. Handle Fallbacks Gracefully
-
-```typescript
-try {
-  const response = await llmClient.generate(messages, config);
-} catch (error) {
-  // Fallback is automatic, but log for monitoring
-  console.error('LLM call failed:', error);
-  // Don't retry manually - fallback already attempted
-  throw error;
-}
-```
-
-### 4. Monitor Costs
-
-```typescript
-// Log every LLM call
-await logLLMCall({
-  debateId,
-  role,
-  model,
-  provider,
-  inputTokens,
-  outputTokens,
-  cost,
-  latencyMs,
-  usedFallback,
-});
-```
-
-## Future Enhancements
-
-### 1. Dynamic Model Selection
-
-```typescript
-// Automatically choose best model based on:
-// - Current load
-// - Cost budget
-// - Latency requirements
-const config = await selectOptimalModel('judge', {
-  maxLatency: 1000,
-  maxCost: 0.15,
-});
-```
-
-### 2. A/B Testing
-
-```typescript
-// Test different models for same role
-const judgeVariant = getExperimentVariant('judge-model-test');
-const config = getModelConfig('judge', { variant: judgeVariant });
-```
-
-### 3. Cost Optimization
-
-```typescript
-// Use cheaper models for non-critical debates
-if (debate.priority === 'low') {
-  config = getModelConfig('judge', { tier: 'budget' });
-}
-```
-
-## Troubleshooting
-
-### Issue: Primary API failing frequently
-
-**Solution:** Check API key validity and rate limits
-```bash
-# Test API keys
-curl -H "Authorization: Bearer $GOOGLE_API_KEY" \
-  https://generativelanguage.googleapis.com/v1/models
-
-curl -H "Authorization: Bearer $OPENAI_API_KEY" \
-  https://api.openai.com/v1/models
-```
-
-### Issue: High fallback usage
-
-**Solution:** Investigate primary provider issues
-```typescript
-// Check fallback rate
-const fallbackRate = fallbackCount / totalCalls;
-if (fallbackRate > 0.1) {
-  alert('High fallback rate detected');
-}
-```
-
-### Issue: Unexpected costs
-
-**Solution:** Audit model usage
-```typescript
-// Generate cost report
-const report = await generateCostReport({
-  startDate,
-  endDate,
-  groupBy: 'role',
-});
-```
-
-## Summary
-
-The hybrid architecture provides:
-
-✅ **Best performance** for critical infrastructure roles  
-✅ **Maximum flexibility** for debater model selection  
-✅ **Automatic fallbacks** for reliability  
-✅ **Cost optimization** through direct APIs  
-✅ **Simple maintenance** with centralized config  
-
-This approach balances performance, cost, and flexibility while maintaining reliability through automatic fallbacks.
+The trade-off is slug-drift exposure on the OpenRouter path, which `models:validate` is designed to catch.
