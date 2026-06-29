@@ -91,6 +91,13 @@ export default function Home() {
               <span>Start a debate</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
+            <Link
+              href="/showcase"
+              className="group inline-flex items-center justify-center gap-2 px-8 py-4 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-all hover:scale-[1.02] shadow-lg shadow-emerald-500/20"
+            >
+              <span>Explore the showcase</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
             <a
               href="https://github.com/Nether403/AIdebate/blob/main/docs/REVIVAL_ROADMAP.md"
               target="_blank"
