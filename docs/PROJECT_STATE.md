@@ -18,6 +18,17 @@ A Grok-judged debate in the prior live run came back `evaluation_failed`. Invest
 
 Verified: `npm run typecheck` clean, `npm test` 94 passing, `npm run lint` 0 errors, `npm run models:validate` reports all slugs live.
 
+### Live end-to-end validation (2026-06-29)
+
+The slug fix was confirmed against the original symptom with a full live debate on a disposable Neon branch: Claude Sonnet 4.5 (Pro) vs GPT-5.1 (Con), motion "AI systems should be open-source by default", 3 rounds, fact-checking in `standard` mode, judge **overridden to `openrouter` / `x-ai/grok-4.3`**.
+
+- **Grok-4.3 judge: resolved.** Debate `completed`, `winner=con`, `error_state=null`. All three judge evaluations (`pro_first`, `con_first`, `consensus`) parsed cleanly (`parse_status=parsed`) via `x-ai/grok-4.3`. The original `evaluation_failed` symptom did not reproduce. Both orders independently picked `con`, `consensus=true`, no tiebreaker, no position bias.
+- **Fact-checking enabled, at scale: confirmed.** This was previously unverified end-to-end. 25 claim-level fact-checks persisted (11 true, 1 false, 13 unverifiable), **every one with ≥1 source**. The single-debate export contained all 3 evaluations and all 25 verdicts with sources.
+- **Turn handling:** all 6 turns accepted within the 250-word limit; word-limit retries fired and truncated as designed; no duplicate turns.
+- **New finding (minor):** OpenRouter **judge** calls recorded `$0` cost despite ~5.5k tokens per evaluation, even though OpenRouter **debater** calls captured cost correctly. The usage-cost accounting added for the debater stage is not threaded through the judge/tiebreaker stage. Tracked in `docs/KNOWN_LIMITATIONS.md`; not blocking.
+
+
+
 ## 2026-06-29 Alignment Instrumentation
 
 Research instrumentation toward the alignment/scalable-oversight direction (provider-light; validated by unit tests + a DB-level check, no heavy live runs):
@@ -72,7 +83,7 @@ Fixes landed on branch `fix/debate-loop-reliability` (verified by 63 passing uni
 
 - The configured Gemini judge is unusable in the current environment: there is no `GOOGLE_API_KEY` for the direct path, and the OpenRouter Gemini route is BYOK-linked to a Google project with billing disabled. The judge must be pointed at a model the available keys can serve (e.g. a first-party-served OpenRouter slug) until Gemini access is restored.
 - Accepted turns have no minimum-length enforcement: a model that returns an empty speech produces a persisted 0-word turn that still counts toward a completed debate. The moderator's minimum-length check is only a warning and is not enforced in the fact-checker gate.
-- A live debate with fact-checking enabled (`standard`/`strict`) has not yet been exercised end-to-end; the verification runs used `factCheckMode: off`. Tavily + Azure fact-checker wiring is therefore unconfirmed on the current schema.
+- A live debate with fact-checking enabled was confirmed end-to-end on 2026-06-29 (`standard` mode: 25 sourced claim checks on a 3-round grok-4.3-judged debate). `strict` mode was exercised in the earlier big live run. Tavily + Azure fact-checker wiring is therefore confirmed on the current schema.
 - `prompt_templates` now has a write path (`lib/prompts/registry.ts` + `prompts:seed` CLI, also run by `db:seed`). Agents source prompt/schema version IDs from the registry, and persisted `promptVersion` values (`debate-rcr-v1`, `fact-check-v1`) link back to registry rows via `${templateId}-${version}`.
 - `topic_sets`/`topic_set_topics` now have write paths (`lib/topics/topic-sets.ts` + `scripts/create-topic-set.ts`), and benchmark debate configs may reference a `topicSetId` to draw topics from a set round-robin.
 - There is still no partial unique constraint on accepted turns (roadmap calls for idempotency to avoid duplicate turns on retry).
