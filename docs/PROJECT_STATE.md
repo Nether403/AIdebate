@@ -25,7 +25,7 @@ The slug fix was confirmed against the original symptom with a full live debate 
 - **Grok-4.3 judge: resolved.** Debate `completed`, `winner=con`, `error_state=null`. All three judge evaluations (`pro_first`, `con_first`, `consensus`) parsed cleanly (`parse_status=parsed`) via `x-ai/grok-4.3`. The original `evaluation_failed` symptom did not reproduce. Both orders independently picked `con`, `consensus=true`, no tiebreaker, no position bias.
 - **Fact-checking enabled, at scale: confirmed.** This was previously unverified end-to-end. 25 claim-level fact-checks persisted (11 true, 1 false, 13 unverifiable), **every one with ≥1 source**. The single-debate export contained all 3 evaluations and all 25 verdicts with sources.
 - **Turn handling:** all 6 turns accepted within the 250-word limit; word-limit retries fired and truncated as designed; no duplicate turns.
-- **New finding (minor):** OpenRouter **judge** calls recorded `$0` cost despite ~5.5k tokens per evaluation, even though OpenRouter **debater** calls captured cost correctly. The usage-cost accounting added for the debater stage is not threaded through the judge/tiebreaker stage. Tracked in `docs/KNOWN_LIMITATIONS.md`; not blocking.
+- **Cost-telemetry note (not a defect):** OpenRouter **judge** calls recorded `$0` despite ~5.5k tokens per evaluation, while OpenRouter **debater** calls captured cost. The judge captures cost identically to debaters (same client, `response.cost` from OpenRouter `usage.cost`); the `$0` is because the judged model (grok-4.3) is BYOK-routed on the OpenRouter account, which OpenRouter does not bill to credits and reports as `$0`. Tracked in `docs/KNOWN_LIMITATIONS.md`.
 
 
 
