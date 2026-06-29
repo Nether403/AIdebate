@@ -1,0 +1,17 @@
+[
+  {
+    "topicMotion": "AI systems should be open-source by default",
+    "winner": "pro",
+    "note": "PLACEHOLDER — replace with a human/expert verdict. Match by topicMotion or debateId."
+  },
+  {
+    "topicMotion": "Nuclear energy is essential for fighting climate change",
+    "winner": "con",
+    "note": "PLACEHOLDER — illustrative only; not a real label."
+  },
+  {
+    "debateId": "00000000-0000-0000-0000-000000000000",
+    "winner": "tie",
+    "note": "PLACEHOLDER — prefer matching by debateId for exactness once a run exists."
+  }
+]

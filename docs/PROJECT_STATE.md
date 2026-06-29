@@ -8,6 +8,14 @@ AI Debate Arena is under revival as a focused LLM debate benchmarking and alignm
 
 `docs/REVIVAL_ROADMAP.md` is the source of truth for product direction. Older product, deployment, gamification, and production-readiness documents should be treated as stale unless they are explicitly updated to match the roadmap.
 
+## 2026-06-29 Alignment Instrumentation
+
+Research instrumentation toward the alignment/scalable-oversight direction (provider-light; validated by unit tests + a DB-level check, no heavy live runs):
+
+- **Configurable judge ("judge strength" variable):** debate/benchmark configs accept `judgeProvider`/`judgeModel` (via `resolveJudgeConfig`, falling back to the infrastructure judge). Enables weak-judge-over-strong-debaters oversight experiments. The judge tiebreaker now defaults to the primary judge model (was a dead Azure default), so disagreement resolution always points at a working model.
+- **Persuasion-vs-truth divergence:** `lib/benchmark/divergence.ts` computes the factuality-favored side and whether the judged winner diverges from it. Surfaced in exports (`factualityWinner`, `persuasionTruthDivergence` per debate; `divergentDebates`, `charismaticLiarWins` per model).
+- **Gold-set judge calibration:** `lib/benchmark/calibration.ts` + the `judge:calibrate` CLI compare a run's persisted judge verdicts to a human gold-label file (no LLM) and report agreement + confusion. Format in `configs/gold-set.example.json`. Complements the live `lib/agents/judge-calibration.ts`.
+
 ## 2026-06-28 End-to-End Verification and Reliability Fixes
 
 The core debate loop was verified end-to-end against live providers for the first time, using disposable Neon branches (created from the `green-feather-38305116` project, then deleted). Both a one-round and a three-round debate were run from configuration through persistence, judging, and JSON export.

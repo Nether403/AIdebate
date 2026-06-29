@@ -13,6 +13,8 @@ const testFiles = [
   'lib/benchmark/__tests__/runner.test.ts',
   'lib/benchmark/__tests__/snapshots.test.ts',
   'lib/benchmark/__tests__/dataset.test.ts',
+  'lib/benchmark/__tests__/divergence.test.ts',
+  'lib/benchmark/__tests__/calibration.test.ts',
   'lib/topics/__tests__/topic-sets.test.ts',
   'lib/prompts/__tests__/registry.test.ts',
 ]
