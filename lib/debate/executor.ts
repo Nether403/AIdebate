@@ -5,7 +5,7 @@
  * Compiles and runs the debate graph, saving turns to the database.
  */
 
-import { compileDebateGraph, type DebateState } from '@/lib/agents/graph'
+import { compileDebateGraph, DEBATE_GRAPH_RECURSION_LIMIT, type DebateState } from '@/lib/agents/graph'
 import { db } from '@/lib/db/client'
 import { debateEvaluations, debates } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -112,6 +112,7 @@ export async function executeDebate(debateId: string): Promise<void> {
       configurable: {
         thread_id: debateId,
       },
+      recursionLimit: DEBATE_GRAPH_RECURSION_LIMIT,
     }
     
     console.log(`[Executor] Starting graph execution...`)

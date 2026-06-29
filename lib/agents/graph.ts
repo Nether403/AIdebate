@@ -232,13 +232,21 @@ export function createDebateGraph() {
 }
 
 /**
- * Create and compile the debate graph with checkpointer
+ * Create and compile the debate graph with checkpointer.
  */
 export function compileDebateGraph() {
   const graph = createDebateGraph()
   const checkpointer = new MemorySaver()
   return graph.compile({ checkpointer })
 }
+
+/**
+ * The recursion limit must accommodate multi-round debates with retries.
+ * A 3-round debate needs ~21 events minimum. Word-limit and strict-mode retries
+ * add ~6 events per cycle. 150 gives comfortable headroom for up to 5 rounds
+ * with multiple retries.
+ */
+export const DEBATE_GRAPH_RECURSION_LIMIT = 150
 
 
 
