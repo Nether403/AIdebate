@@ -52,3 +52,6 @@ next-env.d.ts
 !/archive/product-era/**
 /docs/archive/
 /scripts/archive/
+
+# Local verification screenshots
+test-results/
