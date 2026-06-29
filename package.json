@@ -20,6 +20,7 @@
     "benchmark:run": "tsx --env-file=.env scripts/run-benchmark.ts",
     "dataset:export": "tsx --env-file=.env scripts/export-dataset.ts",
     "topicset:create": "tsx --env-file=.env scripts/create-topic-set.ts",
+    "models:validate": "tsx --env-file=.env scripts/validate-models.ts",
     "prompts:seed": "tsx --env-file=.env scripts/seed-prompts.ts",
     "judge:calibrate": "tsx --env-file=.env scripts/judge-calibration.ts",
     "db:generate": "drizzle-kit generate",

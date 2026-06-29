@@ -10,24 +10,79 @@ import { z } from 'zod';
 
 const logicalFallacySchema = z.object({
   // Judges routinely emit fallacy labels outside any fixed list. This is
-  // descriptive metadata, so accept any label rather than failing the whole
-  // verdict on an unrecognized type. Severity tolerates unexpected values too.
-  type: z.string(),
-  description: z.string(),
-  location: z.string(),
+  // descriptive metadata, so accept any label and tolerate missing fields rather
+  // than failing the whole verdict.
+  type: z.string().catch(''),
+  description: z.string().catch(''),
+  location: z.string().catch(''),
   severity: z.enum(['minor', 'moderate', 'severe']).catch('moderate'),
-});
+})
 
-const judgeResponseSchema = z.object({
-  winner: z.enum(['pro', 'con', 'tie']),
+// Coerce a score to a number in [0,10]; missing/NaN -> 0. Tolerates models that
+// emit numeric strings ("8"), out-of-range values, or "8/10"-style fractions.
+const scoreSchema = z.preprocess((v) => {
+  let n: number
+  if (typeof v === 'number') n = v
+  else if (typeof v === 'string') n = parseFloat(v.replace(/[^0-9.\-].*$/, '')) // "8/10" -> 8
+  else n = NaN
+  if (Number.isNaN(n)) return 0
+  return Math.max(0, Math.min(10, n))
+}, z.number().min(0).max(10))
+
+// Normalize the winner across casing / decoration ("Pro", "CON.", "tie (...)").
+const winnerSchema = z.preprocess((v) => {
+  if (typeof v !== 'string') return v
+  const s = v.trim().toLowerCase()
+  if (s.startsWith('pro')) return 'pro'
+  if (s.startsWith('con')) return 'con'
+  if (s.startsWith('tie') || s.startsWith('draw') || s.startsWith('neither')) return 'tie'
+  return s
+}, z.enum(['pro', 'con', 'tie']))
+
+const judgeResponseSchema = z.preprocess((raw: any) => {
+  // Tolerate scores flattened to the top level instead of nested under `scores`.
+  if (raw && typeof raw === 'object' && !raw.scores &&
+    (raw.logical_coherence != null || raw.rebuttal_strength != null || raw.factuality != null)) {
+    return {
+      ...raw,
+      scores: {
+        logical_coherence: raw.logical_coherence,
+        rebuttal_strength: raw.rebuttal_strength,
+        factuality: raw.factuality,
+      },
+    }
+  }
+  return raw
+}, z.object({
+  winner: winnerSchema,
   scores: z.object({
-    logical_coherence: z.number().min(0).max(10),
-    rebuttal_strength: z.number().min(0).max(10),
-    factuality: z.number().min(0).max(10),
+    logical_coherence: scoreSchema,
+    rebuttal_strength: scoreSchema,
+    factuality: scoreSchema,
   }),
-  justification: z.string().min(100),
-  flagged_fallacies: z.array(logicalFallacySchema).default([]),
-});
+  // Require a non-empty justification but do not gate on length (model-dependent).
+  justification: z.string().min(1),
+  // Accept missing/null/non-array as an empty list.
+  flagged_fallacies: z.preprocess((v) => (Array.isArray(v) ? v : []), z.array(logicalFallacySchema)).default([]),
+}))
+
+/**
+ * Extract a JSON object string from a (possibly decorated) model response.
+ * Handles markdown code fences and surrounding prose by taking the outermost
+ * `{ ... }` span. Returns the trimmed input unchanged if no braces are found.
+ */
+export function extractJsonObject(response: string): string {
+  let s = (response ?? '').trim()
+  if (s.includes('```')) {
+    s = s.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim()
+  }
+  const start = s.indexOf('{')
+  const end = s.lastIndexOf('}')
+  if (start >= 0 && end > start) {
+    return s.slice(start, end + 1)
+  }
+  return s
+}
 
 // Logical fallacy types
 export type FallacyType =
@@ -407,13 +462,7 @@ Provide your evaluation now:`;
    */
   private parseJudgeResponse(response: string, order: EvaluationOrder): Omit<JudgeVerdict, 'metadata'> {
     try {
-      // Extract JSON from response (handle markdown code blocks)
-      let jsonStr = response.trim();
-      
-      // Remove markdown code blocks if present
-      if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      }
+      const jsonStr = extractJsonObject(response);
 
       const parsed = judgeResponseSchema.parse(JSON.parse(jsonStr));
       const scores = parsed.scores;

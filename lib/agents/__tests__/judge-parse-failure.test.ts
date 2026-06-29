@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert'
-import { JudgeAgent, JudgeParseError, type CompletedDebate } from '../judge'
+import { JudgeAgent, JudgeParseError, extractJsonObject, type CompletedDebate } from '../judge'
 
 const debate: CompletedDebate = {
   id: 'debate-parse-failure',
@@ -111,5 +111,69 @@ describe('JudgeAgent parse failures', () => {
     // Per-evaluation telemetry is threaded through verdict metadata.
     assert.strictEqual(verdict.metadata.cost, 0.01)
     assert.deepStrictEqual(verdict.metadata.tokens_used, { input: 10, output: 20, total: 30 })
+  })
+})
+
+describe('extractJsonObject', () => {
+  it('strips code fences and surrounding prose to the outermost JSON object', () => {
+    assert.strictEqual(extractJsonObject('{"a":1}'), '{"a":1}')
+    assert.strictEqual(extractJsonObject('```json\n{"a":1}\n```'), '{"a":1}')
+    assert.strictEqual(extractJsonObject('Here is my verdict:\n```json\n{"a":1}\n```\nThanks!'), '{"a":1}')
+    assert.strictEqual(extractJsonObject('Sure — {"a":1} (done)'), '{"a":1}')
+  })
+
+  it('returns the trimmed input when there is no JSON object', () => {
+    assert.strictEqual(extractJsonObject('  not json  '), 'not json')
+  })
+})
+
+describe('JudgeAgent parse robustness (cross-model quirks)', () => {
+  const debate: CompletedDebate = {
+    id: 'd-robust',
+    topic: 'Resolved: judge parsing should be robust across model families.',
+    pro_turns: [{ id: 'p1', debateId: 'd-robust', roundNumber: 1, side: 'pro', modelId: 'm', reflection: null, critique: null, speech: 'pro speech', wordCount: 2, factChecksPassed: 0, factChecksFailed: 0, wasRejected: false, retryCount: 0, tokensUsed: 1, latencyMs: 1, createdAt: new Date() }],
+    con_turns: [{ id: 'c1', debateId: 'd-robust', roundNumber: 1, side: 'con', modelId: 'm', reflection: null, critique: null, speech: 'con speech', wordCount: 2, factChecksPassed: 0, factChecksFailed: 0, wasRejected: false, retryCount: 0, tokensUsed: 1, latencyMs: 1, createdAt: new Date() }],
+  }
+
+  function judgeReturning(content: string) {
+    const judge = new JudgeAgent({ model: 'judge-model', provider: 'openrouter', useTiebreaker: false })
+    ;(judge as any).llmClient = {
+      generate: async () => ({ content, provider: 'openrouter', model: 'judge-model', tokensUsed: { input: 1, output: 1, total: 2 }, latencyMs: 1, cost: 0 }),
+    }
+    return judge
+  }
+
+  it('parses fenced JSON wrapped in prose, with capitalized winner', async () => {
+    const content = 'Here is my assessment:\n```json\n{ "winner": "Pro", "scores": { "logical_coherence": 8, "rebuttal_strength": 7, "factuality": 9 }, "justification": "Pro was clearer." }\n```'
+    const v = await judgeReturning(content).evaluateDebate(debate, 'pro_first')
+    assert.strictEqual(v.winner, 'pro')
+    assert.strictEqual(v.scores.logical_coherence, 8)
+  })
+
+  it('coerces numeric-string and out-of-range scores', async () => {
+    const content = '{ "winner": "con", "scores": { "logical_coherence": "8", "rebuttal_strength": "9/10", "factuality": 99 }, "justification": "Con made fewer errors." }'
+    const v = await judgeReturning(content).evaluateDebate(debate, 'pro_first')
+    assert.strictEqual(v.winner, 'con')
+    assert.strictEqual(v.scores.logical_coherence, 8)
+    assert.strictEqual(v.scores.rebuttal_strength, 9)
+    assert.strictEqual(v.scores.factuality, 10) // clamped
+  })
+
+  it('tolerates scores flattened to the top level and null fallacies', async () => {
+    const content = '{ "winner": "tie", "logical_coherence": 6, "rebuttal_strength": 6, "factuality": 6, "justification": "Even match.", "flagged_fallacies": null }'
+    const v = await judgeReturning(content).evaluateDebate(debate, 'pro_first')
+    assert.strictEqual(v.winner, 'tie')
+    assert.strictEqual(v.scores.factuality, 6)
+    assert.deepStrictEqual(v.flagged_fallacies, [])
+  })
+
+  it('accepts a terse justification (length is no longer a parse gate)', async () => {
+    const content = '{ "winner": "pro", "scores": { "logical_coherence": 7, "rebuttal_strength": 7, "factuality": 7 }, "justification": "Pro." }'
+    const v = await judgeReturning(content).evaluateDebate(debate, 'pro_first')
+    assert.strictEqual(v.winner, 'pro')
+  })
+
+  it('still throws JudgeParseError on genuinely unparseable output', async () => {
+    await assert.rejects(() => judgeReturning('the pro side basically won i think').evaluateDebate(debate, 'pro_first'), (e: unknown) => e instanceof JudgeParseError)
   })
 })
