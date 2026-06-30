@@ -19,6 +19,7 @@ export async function GET(
         conModel: true,
         proPersona: true,
         conPersona: true,
+        evaluations: true,
         turns: {
           orderBy: (turns, { asc }) => [asc(turns.roundNumber), asc(turns.createdAt)],
           with: {
@@ -27,6 +28,7 @@ export async function GET(
         },
       },
     })
+
 
     if (!debate) {
       return NextResponse.json(

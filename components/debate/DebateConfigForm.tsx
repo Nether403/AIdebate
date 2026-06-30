@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Shuffle } from 'lucide-react'
+import { Shuffle, Cpu, HelpCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import type { Model, Topic, Persona } from '@/types'
 
 interface DebateConfigFormProps {
@@ -77,7 +77,6 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Validation
     if (!config.proModelId || !config.conModelId) {
       alert('Please select both Pro and Con models')
       return
@@ -93,17 +92,14 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
       return
     }
 
-    // Build the final config based on topic mode
     const finalConfig: DebateConfig = {
       ...config,
       topicSelection: topicMode,
     }
 
-    // Only include topicId if manual mode and a topic is selected
     if (topicMode === 'manual' && config.topicId) {
       finalConfig.topicId = config.topicId
     } else {
-      // Remove topicId for random mode
       delete finalConfig.topicId
     }
 
@@ -112,52 +108,57 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
 
   if (loadingData) {
     return (
-      <div className="bg-slate-800 rounded-lg p-8 border border-slate-700">
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        </div>
+      <div className="glass-panel rounded-2xl p-12 flex flex-col items-center justify-center space-y-4">
+        <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
+        <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Syncing Model Registries...</p>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-slate-800 rounded-lg p-6 border border-slate-700 space-y-6">
-      <h2 className="text-2xl font-bold text-white">Configure Debate</h2>
+    <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 md:p-8 space-y-6 relative overflow-hidden">
+      {/* Decorative gradient corner */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-cyan-500/10 to-transparent blur-2xl pointer-events-none" />
+      
+      <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
+        <Cpu className="w-5 h-5 text-cyan-400" />
+        <h2 className="text-xl font-bold text-white tracking-tight">Run Configuration</h2>
+      </div>
 
-      {/* Model Selection */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Pro Model
+      {/* Model Selection Row */}
+      <div className="grid md:grid-cols-2 gap-5">
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-cyan-300 uppercase tracking-wider">
+            Pro Model (Affirmative)
           </label>
           <select
             value={config.proModelId}
             onChange={(e) => setConfig({ ...config, proModelId: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all duration-300"
             required
           >
-            <option value="">Select a model...</option>
+            <option value="" className="bg-slate-950">Select a model...</option>
             {models.map((model) => (
-              <option key={model.id} value={model.id}>
+              <option key={model.id} value={model.id} className="bg-slate-950">
                 {model.name} ({model.provider})
               </option>
             ))}
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Con Model
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-rose-300 uppercase tracking-wider">
+            Con Model (Negative)
           </label>
           <select
             value={config.conModelId}
             onChange={(e) => setConfig({ ...config, conModelId: e.target.value })}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 transition-all duration-300"
             required
           >
-            <option value="">Select a model...</option>
+            <option value="" className="bg-slate-950">Select a model...</option>
             {models.map((model) => (
-              <option key={model.id} value={model.id}>
+              <option key={model.id} value={model.id} className="bg-slate-950">
                 {model.name} ({model.provider})
               </option>
             ))}
@@ -165,38 +166,38 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
         </div>
       </div>
 
-      {/* Persona Selection */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Pro Persona (Optional)
+      {/* Persona Selection Row */}
+      <div className="grid md:grid-cols-2 gap-5">
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            Pro Persona <span className="text-[10px] lowercase text-slate-500">(optional)</span>
           </label>
           <select
             value={config.proPersonaId || ''}
             onChange={(e) => setConfig({ ...config, proPersonaId: e.target.value || null })}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-white/20 transition-all duration-300"
           >
-            <option value="">No persona</option>
+            <option value="" className="bg-slate-950">Default Benchmarking Behavior</option>
             {personas.map((persona) => (
-              <option key={persona.id} value={persona.id}>
+              <option key={persona.id} value={persona.id} className="bg-slate-950">
                 {persona.name}
               </option>
             ))}
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Con Persona (Optional)
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            Con Persona <span className="text-[10px] lowercase text-slate-500">(optional)</span>
           </label>
           <select
             value={config.conPersonaId || ''}
             onChange={(e) => setConfig({ ...config, conPersonaId: e.target.value || null })}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-white/20 transition-all duration-300"
           >
-            <option value="">No persona</option>
+            <option value="" className="bg-slate-950">Default Benchmarking Behavior</option>
             {personas.map((persona) => (
-              <option key={persona.id} value={persona.id}>
+              <option key={persona.id} value={persona.id} className="bg-slate-950">
                 {persona.name}
               </option>
             ))}
@@ -205,24 +206,24 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
       </div>
 
       {/* Topic Selection */}
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
-          Topic Selection
+      <div className="space-y-3 pt-2">
+        <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+          Topic / Motion Selection
         </label>
-        <div className="flex gap-2 mb-2">
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => {
               setTopicMode('random')
               setConfig({ ...config, topicSelection: 'random', topicId: undefined })
             }}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
               topicMode === 'random'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                ? 'bg-cyan-500/10 border border-cyan-500/35 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.1)]'
+                : 'bg-slate-950/40 border border-white/5 text-slate-400 hover:text-white hover:bg-slate-900/40'
             }`}
           >
-            Random
+            Random Selection
           </button>
           <button
             type="button"
@@ -230,80 +231,80 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
               setTopicMode('manual')
               setConfig({ ...config, topicSelection: 'manual' })
             }}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
               topicMode === 'manual'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                ? 'bg-cyan-500/10 border border-cyan-500/35 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.1)]'
+                : 'bg-slate-950/40 border border-white/5 text-slate-400 hover:text-white hover:bg-slate-900/40'
             }`}
           >
-            Manual
+            Manual Selection
           </button>
         </div>
 
         {topicMode === 'manual' && (
-          <div className="space-y-2">
+          <div className="space-y-3 animate-fadeIn">
             <select
               value={config.topicId || ''}
               onChange={(e) => setConfig({ ...config, topicId: e.target.value || undefined })}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all duration-300"
               required={topicMode === 'manual'}
             >
-              <option value="">Select a topic...</option>
+              <option value="" className="bg-slate-950">Select a curated topic motion...</option>
               {topics.map((topic) => (
-                <option key={topic.id} value={topic.id}>
-                  {topic.motion} ({topic.category} - {topic.difficulty})
+                <option key={topic.id} value={topic.id} className="bg-slate-950">
+                  {topic.motion} [{topic.category} - {topic.difficulty}]
                 </option>
               ))}
             </select>
             <button
               type="button"
               onClick={handleRandomTopic}
-              className="flex items-center gap-2 px-3 py-1 text-sm bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-slate-900 border border-white/5 text-slate-300 rounded-lg hover:border-cyan-500/20 hover:text-white transition-all"
             >
-              <Shuffle className="w-4 h-4" />
-              Pick Random
+              <Shuffle className="w-3.5 h-3.5" />
+              <span>Draw Random Curated Topic</span>
             </button>
           </div>
         )}
 
         {topicMode === 'random' && (
-          <p className="text-sm text-slate-400 italic">
-            A random topic will be selected when the debate starts
+          <p className="text-xs text-slate-500 italic bg-slate-950/20 px-3 py-2 rounded-lg border border-white/5 inline-block">
+            ℹ️ A random topic will be selected automatically from the active pool at graph initiation.
           </p>
         )}
       </div>
 
       {/* Debate Settings */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Number of Rounds
+      <div className="grid md:grid-cols-2 gap-5 pt-2">
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+            Total Rounds
           </label>
           <select
             value={config.totalRounds}
             onChange={(e) => setConfig({ ...config, totalRounds: parseInt(e.target.value) })}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-white/20 transition-all duration-300"
           >
-            <option value={1}>1 Round</option>
-            <option value={2}>2 Rounds</option>
-            <option value={3}>3 Rounds</option>
-            <option value={4}>4 Rounds</option>
-            <option value={5}>5 Rounds</option>
+            <option value={1} className="bg-slate-950">1 Round (Smoke Test)</option>
+            <option value={2} className="bg-slate-950">2 Rounds</option>
+            <option value={3} className="bg-slate-950">3 Rounds (Standard)</option>
+            <option value={4} className="bg-slate-950">4 Rounds</option>
+            <option value={5} className="bg-slate-950">5 Rounds (Deep Benchmark)</option>
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Fact-Checking Mode
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+            Fact-Checking Gate Mode
           </label>
           <select
             value={config.factCheckMode}
             onChange={(e) => setConfig({ ...config, factCheckMode: e.target.value as any })}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-white/20 transition-all duration-300"
           >
-            <option value="off">Off</option>
-            <option value="standard">Standard</option>
-            <option value="strict">Strict (Rejects false claims)</option>
+            <option value="off" className="bg-slate-950">Off (Lightweight / Dry Runs)</option>
+            <option value="standard" className="bg-slate-950">Standard (Claim source-checking)</option>
+            <option value="strict" className="bg-slate-950">Strict (Rejects false claim drafts)</option>
           </select>
         </div>
       </div>
@@ -312,10 +313,19 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"
+        className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl hover:scale-[1.01] hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mt-4 text-sm tracking-wider uppercase"
       >
-        {isLoading ? 'Starting Debate...' : 'Start Debate'}
+        {isLoading ? (
+          <>
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            <span>Spawning LangGraph Session...</span>
+          </>
+        ) : (
+          <span>Start Benchmarking Run</span>
+        )}
       </button>
     </form>
   )
 }
+
+

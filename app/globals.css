@@ -1,41 +1,158 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --card: #f8fafc;
-  --card-foreground: #0f172a;
-  --border: #e2e8f0;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --background: #030712;
+  --foreground: #f3f4f6;
+  --card: rgba(17, 24, 39, 0.6);
+  --card-foreground: #f9fafb;
+  --border: rgba(255, 255, 255, 0.08);
+  --muted: #111827;
+  --muted-foreground: #9ca3af;
+  
+  --accent-cyan: #00f2fe;
+  --accent-violet: #8b5cf6;
+  --accent-pink: #ec4899;
+  --accent-amber: #f59e0b;
 }
 
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --card: #1e293b;
-  --card-foreground: #f1f5f9;
-  --border: #334155;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
+.light {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: rgba(255, 255, 255, 0.8);
+  --card-foreground: #0f172a;
+  --border: rgba(15, 23, 42, 0.08);
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* Custom premium card classes */
+.glass-panel {
+  background: rgba(10, 15, 30, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+.glass-card-cyan {
+  background: rgba(0, 242, 254, 0.02);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 242, 254, 0.15);
+}
+
+.glass-card-cyan:hover {
+  border-color: rgba(0, 242, 254, 0.4);
+  box-shadow: 0 0 25px rgba(0, 242, 254, 0.15);
+}
+
+.glass-card-violet {
+  background: rgba(139, 92, 246, 0.02);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.glass-card-violet:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.15);
+}
+
+.glass-card-pink {
+  background: rgba(236, 72, 153, 0.02);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(236, 72, 153, 0.15);
+}
+
+.glass-card-pink:hover {
+  border-color: rgba(236, 72, 153, 0.4);
+  box-shadow: 0 0 25px rgba(236, 72, 153, 0.15);
+}
+
+.glass-card-amber {
+  background: rgba(245, 158, 11, 0.02);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.glass-card-amber:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.15);
+}
+
+/* Text & Border glows */
+.neon-glow-cyan {
+  text-shadow: 0 0 8px rgba(0, 242, 254, 0.5);
+}
+
+.neon-glow-violet {
+  text-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+}
+
+.neon-glow-pink {
+  text-shadow: 0 0 8px rgba(236, 72, 153, 0.5);
+}
+
+/* Pulsing background blobs */
+.glow-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+  animation: float 20s infinite alternate;
+}
+
+@keyframes float {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(50px, -50px) scale(1.2);
+  }
+  100% {
+    transform: translate(-50px, 50px) scale(0.8);
+  }
+}
+
+/* Shimmer animation for headers */
+.shimmer-text {
+  background: linear-gradient(
+    to right,
+    #00f2fe 0%,
+    #8b5cf6 30%,
+    #ec4899 70%,
+    #00f2fe 100%
+  );
+  background-size: 200% auto;
+  color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shine 6s linear infinite;
+}
+
+@keyframes shine {
+  to {
+    background-position: 200% center;
   }
 }
 
 /* Smooth transitions for theme changes */
 * {
-  transition-property: background-color, border-color, color;
+  transition-property: background-color, border-color, color, box-shadow;
   transition-duration: 0.2s;
   transition-timing-function: ease-in-out;
 }
@@ -44,3 +161,10 @@ body {
 .no-transition * {
   transition: none !important;
 }
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+

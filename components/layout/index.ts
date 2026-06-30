@@ -12,3 +12,5 @@ export { Card } from './Card'
 export { Badge } from './Badge'
 export { Alert } from './Alert'
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs'
+export { NeuralBackground } from './NeuralBackground'
+

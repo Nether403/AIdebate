@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle, HelpCircle } from 'lucide-react'
+import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle, HelpCircle, ShieldAlert, ShieldCheck, Terminal, Clock, Coins, Hash, ExternalLink } from 'lucide-react'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import type { DebateTurn, Model, FactCheck } from '@/types'
 
@@ -33,168 +34,193 @@ export function DebateTranscript({ turns, proModel, conModel, factCheckMode }: D
 
   if (turns.length === 0) {
     return (
-      <div className="bg-slate-800 rounded-lg p-8 border border-slate-700 text-center">
-        <p className="text-slate-400">No turns yet. Debate will begin shortly...</p>
+      <div className="glass-panel rounded-2xl p-12 text-center border border-white/5">
+        <p className="text-slate-400 text-sm font-light">No arguments streamed yet. Graph session initiating...</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <AnimatePresence mode="popLayout">
         {turns.map((turn, index) => {
           const model = turn.side === 'pro' ? proModel : conModel
           const isExpanded = expandedTurns.has(turn.id)
           const hasRCR = turn.reflection || turn.critique
+          const isPro = turn.side === 'pro'
 
           return (
             <motion.div
               key={turn.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-              className={`bg-slate-800 rounded-lg border ${
-                turn.side === 'pro' ? 'border-blue-500/30' : 'border-red-500/30'
+              exit={{ opacity: 0, y: -30 }}
+              transition={{ duration: 0.4, delay: index * 0.05 }}
+              className={`glass-panel rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+                isPro 
+                  ? 'border-cyan-500/20 bg-cyan-950/5 shadow-[0_4px_20px_rgba(6,182,212,0.02)]' 
+                  : 'border-pink-500/20 bg-pink-950/5 shadow-[0_4px_20px_rgba(236,72,153,0.02)]'
               }`}
             >
-            {/* Turn Header */}
-            <div className="p-4 border-b border-slate-700">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    turn.side === 'pro' 
-                      ? 'bg-blue-500/20 text-blue-400' 
-                      : 'bg-red-500/20 text-red-400'
-                  }`}>
-                    {turn.side.toUpperCase()}
-                  </span>
-                  <span className="text-white font-medium">{model.name}</span>
-                  <span className="text-slate-400 text-sm">Round {turn.roundNumber}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Fact Check Indicators */}
-                  {factCheckMode !== 'off' && (
-                    <div className="flex items-center gap-1">
-                      {turn.factChecksPassed > 0 && (
-                        <span className="flex items-center gap-1 text-xs text-green-400">
-                          <CheckCircle className="w-3 h-3" />
-                          {turn.factChecksPassed}
-                        </span>
-                      )}
-                      {turn.factChecksFailed > 0 && (
-                        <span className="flex items-center gap-1 text-xs text-red-400">
-                          <AlertTriangle className="w-3 h-3" />
-                          {turn.factChecksFailed}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {turn.wasRejected && (
-                    <span className="px-2 py-1 rounded text-xs font-medium bg-red-500/20 text-red-400">
-                      Rejected
-                    </span>
-                  )}
-                  <span className="text-slate-400 text-xs">{turn.wordCount} words</span>
-                </div>
-              </div>
-            </div>
+              {/* Subtle top indicator bar */}
+              <div className={`absolute top-0 left-0 right-0 h-[2px] ${
+                isPro ? 'bg-gradient-to-r from-cyan-400 to-blue-500' : 'bg-gradient-to-r from-pink-500 to-rose-400'
+              }`} />
 
-            {/* RCR Thinking Section (Collapsible) */}
-            {hasRCR && (
-              <div className="border-b border-slate-700">
-                <button
-                  onClick={() => toggleTurn(turn.id)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-700/50 transition-colors"
-                >
-                  <span className="text-sm text-slate-300 font-medium">
-                    💭 Thinking Process (RCR)
-                  </span>
-                  {isExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-slate-400" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
-                  )}
-                </button>
-                
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-4 pb-4 space-y-4">
-                        {turn.reflection && (
-                          <motion.div
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.1 }}
-                          >
-                            <h4 className="text-xs font-medium text-blue-400 mb-2">
-                              🔍 REFLECTION
-                            </h4>
-                            <p className="text-sm text-slate-300 whitespace-pre-wrap">
-                              {turn.reflection}
-                            </p>
-                          </motion.div>
+              {/* Turn Header */}
+              <div className="p-4 sm:p-5 border-b border-white/5 bg-slate-950/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold border uppercase tracking-wider ${
+                      isPro 
+                        ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.1)]' 
+                        : 'bg-pink-500/10 border-pink-500/30 text-pink-300 shadow-[0_0_10px_rgba(236,72,153,0.1)]'
+                    }`}>
+                      {turn.side}
+                    </span>
+                    <span className="text-white font-bold text-sm sm:text-base group-hover:text-cyan-300 transition-colors">
+                      {model.name}
+                    </span>
+                    <span className="text-slate-400 font-mono text-xs">Round {turn.roundNumber}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    {/* Fact Check Indicators */}
+                    {factCheckMode !== 'off' && (
+                      <div className="flex items-center gap-1.5">
+                        {turn.factChecksPassed > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md font-mono">
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            <span>{turn.factChecksPassed}</span>
+                          </span>
                         )}
-                        {turn.critique && (
-                          <motion.div
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.2 }}
-                          >
-                            <h4 className="text-xs font-medium text-yellow-400 mb-2">
-                              ⚡ CRITIQUE
-                            </h4>
-                            <p className="text-sm text-slate-300 whitespace-pre-wrap">
-                              {turn.critique}
-                            </p>
-                          </motion.div>
+                        {turn.factChecksFailed > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md font-mono">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            <span>{turn.factChecksFailed}</span>
+                          </span>
                         )}
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-
-            {/* Main Speech */}
-            <div className="p-4">
-              <div className="prose prose-invert max-w-none">
-                <p className="text-slate-200 whitespace-pre-wrap leading-relaxed">
-                  {turn.speech}
-                </p>
+                    )}
+                    
+                    {turn.wasRejected && (
+                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-red-500/25 border border-red-500/40 text-red-300 uppercase tracking-widest">
+                        Rejected
+                      </span>
+                    )}
+                    <span className="text-slate-400 text-xs font-mono">{turn.wordCount} words</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Fact Check Details */}
-              {factCheckMode !== 'off' && (turn as TurnWithFactChecks).factChecks && (
-                <div className="mt-4 space-y-2">
-                  {(turn as TurnWithFactChecks).factChecks!.map((factCheck) => (
-                    <FactCheckBadge key={factCheck.id} factCheck={factCheck} />
-                  ))}
+              {/* RCR Thinking Section (Collapsible Monospace Log) */}
+              {hasRCR && (
+                <div className="border-b border-white/5">
+                  <button
+                    onClick={() => toggleTurn(turn.id)}
+                    className="w-full px-5 py-3 flex items-center justify-between hover:bg-white/5 transition-all text-left"
+                  >
+                    <span className="text-xs text-slate-400 font-mono flex items-center gap-2">
+                      <Terminal className="w-3.5 h-3.5 text-purple-400" />
+                      <span>{isExpanded ? '$ close --rcr-diagnostics' : '$ cat --rcr-diagnostics'}</span>
+                    </span>
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                    )}
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-5 pb-5 pt-1 space-y-4 font-mono bg-slate-950/40 border-t border-white/5">
+                          {turn.reflection && (
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 0.1 }}
+                              className="space-y-1.5"
+                            >
+                              <h4 className="text-[10px] font-bold text-cyan-400 tracking-wider">
+                                &gt;_ REFLECTION_TRACE
+                              </h4>
+                              <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                {turn.reflection}
+                              </p>
+                            </motion.div>
+                          )}
+                          {turn.critique && (
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 0.15 }}
+                              className="space-y-1.5"
+                            >
+                              <h4 className="text-[10px] font-bold text-amber-400 tracking-wider">
+                                &gt;_ ADVERSARIAL_CRITIQUE_TRACE
+                              </h4>
+                              <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                {turn.critique}
+                              </p>
+                            </motion.div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
 
-              {/* Turn Metadata */}
-              <div className="mt-4 pt-4 border-t border-slate-700 flex items-center gap-4 text-xs text-slate-400">
-                {turn.tokensUsed && (
-                  <span>{turn.tokensUsed.toLocaleString()} tokens</span>
+              {/* Main Speech Body */}
+              <div className="p-5 sm:p-6 space-y-5">
+                <div className="prose prose-invert max-w-none">
+                  <p className="text-slate-100 whitespace-pre-wrap leading-relaxed text-sm sm:text-base font-light">
+                    {turn.speech}
+                  </p>
+                </div>
+
+                {/* Fact Check Details (Accordion Grid) */}
+                {factCheckMode !== 'off' && (turn as TurnWithFactChecks).factChecks && (turn as TurnWithFactChecks).factChecks!.length > 0 && (
+                  <div className="space-y-2 pt-4 border-t border-white/5">
+                    <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Annotation logs</h4>
+                    <div className="grid gap-2">
+                      {(turn as TurnWithFactChecks).factChecks!.map((factCheck) => (
+                        <FactCheckBadge key={factCheck.id} factCheck={factCheck} />
+                      ))}
+                    </div>
+                  </div>
                 )}
-                {turn.latencyMs && (
-                  <span>{(turn.latencyMs / 1000).toFixed(2)}s</span>
-                )}
-                {turn.retryCount > 0 && (
-                  <span className="text-yellow-400">
-                    {turn.retryCount} {turn.retryCount === 1 ? 'retry' : 'retries'}
-                  </span>
-                )}
+
+                {/* Turn Telemetry Strip */}
+                <div className="pt-4 border-t border-white/5 flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] text-slate-400 font-mono">
+                  {turn.tokensUsed && (
+                    <div className="flex items-center gap-1.5">
+                      <Hash className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{turn.tokensUsed.toLocaleString()} tokens</span>
+                    </div>
+                  )}
+                  {turn.latencyMs && (
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{(turn.latencyMs / 1000).toFixed(2)}s latency</span>
+                    </div>
+                  )}
+                  {turn.retryCount > 0 && (
+                    <div className="flex items-center gap-1.5 text-amber-400">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{turn.retryCount} {turn.retryCount === 1 ? 'retry' : 'retries'}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
           )
         })}
       </AnimatePresence>
@@ -213,27 +239,27 @@ function FactCheckBadge({ factCheck }: FactCheckBadgeProps) {
     switch (factCheck.verdict) {
       case 'true':
         return {
-          bg: 'bg-green-500/10',
-          border: 'border-green-500/30',
-          text: 'text-green-400',
-          icon: <CheckCircle className="w-4 h-4" />,
-          label: 'Verified',
+          bg: 'bg-emerald-500/5',
+          border: 'border-emerald-500/20 hover:border-emerald-500/40',
+          text: 'text-emerald-400',
+          icon: <ShieldCheck className="w-4 h-4" />,
+          label: 'VERIFIED',
         }
       case 'false':
         return {
-          bg: 'bg-red-500/10',
-          border: 'border-red-500/30',
+          bg: 'bg-red-500/5',
+          border: 'border-red-500/20 hover:border-red-500/40',
           text: 'text-red-400',
-          icon: <AlertTriangle className="w-4 h-4" />,
-          label: 'Red Flag',
+          icon: <ShieldAlert className="w-4 h-4 animate-pulse" />,
+          label: 'FALSE CLAIM',
         }
       default:
         return {
-          bg: 'bg-slate-500/10',
-          border: 'border-slate-500/30',
+          bg: 'bg-slate-500/5',
+          border: 'border-slate-500/20 hover:border-slate-500/40',
           text: 'text-slate-400',
           icon: <HelpCircle className="w-4 h-4" />,
-          label: 'Unverifiable',
+          label: 'UNVERIFIABLE',
         }
     }
   }
@@ -242,28 +268,29 @@ function FactCheckBadge({ factCheck }: FactCheckBadgeProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`rounded-lg border ${style.border} ${style.bg} overflow-hidden`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className={`rounded-xl border ${style.border} ${style.bg} overflow-hidden transition-all duration-300`}
     >
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-3 py-2 flex items-center justify-between hover:bg-slate-700/30 transition-colors"
+        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5 transition-colors text-left"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className={style.text}>{style.icon}</span>
-          <span className={`text-xs font-medium ${style.text}`}>
+          <span className={`text-[10px] font-bold ${style.text} tracking-wider font-mono`}>
             {style.label}
           </span>
-          <span className="text-xs text-slate-400 truncate max-w-md">
-            {factCheck.claim}
+          <span className="text-xs text-slate-300 truncate max-w-xs sm:max-w-md md:max-w-lg">
+            "{factCheck.claim}"
           </span>
         </div>
         <motion.div
           animate={{ rotate: isExpanded ? 180 : 0 }}
           transition={{ duration: 0.2 }}
+          className="shrink-0 ml-2"
         >
-          <ChevronDown className="w-3 h-3 text-slate-400 flex-shrink-0" />
+          <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
         </motion.div>
       </button>
 
@@ -276,39 +303,40 @@ function FactCheckBadge({ factCheck }: FactCheckBadgeProps) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-3 space-y-2">
-          <div>
-            <p className="text-xs font-medium text-slate-300 mb-1">Claim:</p>
-            <p className="text-xs text-slate-400">{factCheck.claim}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-300 mb-1">Reasoning:</p>
-            <p className="text-xs text-slate-400">{factCheck.reasoning}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-300 mb-1">
-              Confidence: {(factCheck.confidence * 100).toFixed(0)}%
-            </p>
-          </div>
-          {factCheck.sources && Array.isArray(factCheck.sources) && factCheck.sources.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-slate-300 mb-1">Sources:</p>
-              <ul className="space-y-1">
-                {factCheck.sources.map((source: any, idx: number) => (
-                  <li key={idx} className="text-xs">
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 underline"
-                    >
-                      {source.url}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+            <div className="px-4 pb-4 pt-1 space-y-3 border-t border-white/5 text-xs text-slate-300">
+              <div className="grid gap-1">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold font-mono">Verifying Evidence reasoning</span>
+                <p className="leading-relaxed font-light text-slate-300">{factCheck.reasoning}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="grid gap-0.5">
+                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold font-mono">Confidence Level</span>
+                  <span className="font-mono text-white text-sm">{(factCheck.confidence * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+
+              {factCheck.sources && Array.isArray(factCheck.sources) && factCheck.sources.length > 0 && (
+                <div className="grid gap-1.5 pt-2">
+                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold font-mono">Retained Sources</span>
+                  <ul className="space-y-1.5">
+                    {factCheck.sources.map((source: any, idx: number) => (
+                      <li key={idx} className="flex items-center gap-1.5 font-mono text-[11px]">
+                        <span className="text-slate-500">{idx + 1}.</span>
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-cyan-400 hover:text-cyan-300 underline flex items-center gap-1"
+                        >
+                          <span>{source.url.replace(/https?:\/\/(www\.)?/, '').substring(0, 45)}...</span>
+                          <ExternalLink className="w-3 h-3 shrink-0" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -316,3 +344,6 @@ function FactCheckBadge({ factCheck }: FactCheckBadgeProps) {
     </motion.div>
   )
 }
+
+
+
