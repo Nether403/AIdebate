@@ -1,5 +1,6 @@
 import { db } from '@/lib/db/client'
 import { llmProviderCalls } from '@/lib/db/schema'
+import { recomputeAndGovern } from '@/lib/cost/governor'
 import type { LLMConfig, LLMProvider, LLMResponse } from '@/types/llm'
 
 export interface RecordLLMProviderCallInput {
@@ -41,6 +42,16 @@ export async function recordLLMProviderCall(input: RecordLLMProviderCallInput): 
     })
   } catch (telemetryError) {
     console.error('[LLM Telemetry] Failed to persist provider call:', telemetryError)
+    return
+  }
+
+  // Governance runs only after a successful insert and is isolated in its own
+  // try/catch so a governance failure fails SOFT and never corrupts or hides the
+  // recorded artifact (the insert above already succeeded).
+  try {
+    await recomputeAndGovern(input.debateId ?? null, input.benchmarkRunId ?? null)
+  } catch (governanceError) {
+    console.error('[Cost Governor] Failed to recompute/govern after provider call:', governanceError)
   }
 }
 

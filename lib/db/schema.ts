@@ -277,27 +277,7 @@ export const datasetExports = pgTable('dataset_exports', {
   debateIdx: index('dataset_exports_debate_idx').on(table.debateId),
 }))
 
-// User profiles table - stores user statistics and DebatePoints
-export const userProfiles = pgTable('user_profiles', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: text('user_id').notNull().unique(), // Stack Auth user ID
-  sessionId: text('session_id').notNull().unique(), // For linking anonymous activity
-  debatePoints: integer('debate_points').default(1000).notNull(), // Virtual currency
-  totalVotes: integer('total_votes').default(0).notNull(),
-  correctPredictions: integer('correct_predictions').default(0).notNull(),
-  totalBetsPlaced: integer('total_bets_placed').default(0).notNull(),
-  totalBetsWon: integer('total_bets_won').default(0).notNull(),
-  totalPointsWagered: integer('total_points_wagered').default(0).notNull(),
-  totalPointsWon: integer('total_points_won').default(0).notNull(),
-  isSuperforecaster: boolean('is_superforecaster').default(false).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => ({
-  userIdx: uniqueIndex('user_profiles_user_idx').on(table.userId),
-  sessionIdx: uniqueIndex('user_profiles_session_idx').on(table.sessionId),
-}))
-
-// User votes table - stores crowd voting with betting
+// User votes table - stores plain crowd voting (no betting/gamification)
 export const userVotes = pgTable('user_votes', {
   id: uuid('id').defaultRandom().primaryKey(),
   debateId: uuid('debate_id').references(() => debates.id, { onDelete: 'cascade' }).notNull(),
@@ -306,9 +286,6 @@ export const userVotes = pgTable('user_votes', {
   vote: text('vote').notNull(), // 'pro', 'con', 'tie'
   confidence: integer('confidence'), // 1-5 scale, optional
   reasoning: text('reasoning'), // Optional user explanation
-  wagerAmount: integer('wager_amount').default(0).notNull(), // DebatePoints wagered
-  oddsAtBet: real('odds_at_bet'), // Odds when bet was placed (e.g., 2.5 means 2.5x payout)
-  payoutAmount: integer('payout_amount').default(0).notNull(), // Points won/lost
   wasCorrect: boolean('was_correct'), // null until debate is judged
   ipAddress: text('ip_address'), // For abuse prevention
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -476,18 +453,10 @@ export const datasetExportsRelations = relations(datasetExports, ({ one }) => ({
   }),
 }))
 
-export const userProfilesRelations = relations(userProfiles, ({ many }) => ({
-  votes: many(userVotes),
-}))
-
 export const userVotesRelations = relations(userVotes, ({ one }) => ({
   debate: one(debates, {
     fields: [userVotes.debateId],
     references: [debates.id],
-  }),
-  userProfile: one(userProfiles, {
-    fields: [userVotes.sessionId],
-    references: [userProfiles.sessionId],
   }),
 }))
 

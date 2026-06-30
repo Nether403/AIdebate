@@ -309,3 +309,149 @@ This coexists with the existing judge-failure errorState shape (`{ stage: 'judge
 - **Protected (must remain, identical type + data):** `userVotes.{vote, confidence, reasoning, debateId, userId, sessionId, ipAddress, wasCorrect, createdAt}` and `debates.{crowdVotesProCount, crowdVotesConCount, crowdVotesTieCount, crowdWinner}`.
 
 > Out-of-scope cleanup the migration enables (tracked, not part of this schema change): `lib/middleware/validation.ts` has a `wagerAmount` field in its vote schema and `app/api/monitoring/metrics/route.ts` reads `wager_amount`; both reference removed columns and must be updated in the implementation tasks so the build stays green.
+
+## Correctness Properties
+
+*A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
+
+These properties target this feature's **pure cost-governance core** (summation, ceiling evaluation, validation, state-transition logic, metrics filtering, and the document supersede transform). The schema migration and the database/file side effects are validated by integration and example tests instead (see Testing Strategy). The properties below were derived from the prework classification, with redundant criteria consolidated.
+
+### Property 1: Cost aggregation normalizes and sums
+
+*For any* list of reported costs whose entries may be finite numbers, `0`, `null`, `undefined`, negative numbers, or non-numeric values, `sumReportedCost` returns a `total` equal to the arithmetic sum of only the finite, `>= 0` entries (every other entry contributing exactly `0`), an `invalidCount` equal to the number of negative or non-numeric entries, and a `total` that is always finite and `>= 0`; aggregation never throws.
+
+**Validates: Requirements 1.1, 2.1, 4.1, 4.2, 4.3, 4.4, 4.5**
+
+### Property 2: Ceiling trips iff configured and strictly exceeded
+
+*For any* accumulated cost and ceiling configuration, `evaluateCeiling` reports `tripped = true` if and only if the ceiling is configured (non-null) AND the accumulated cost is strictly greater than the ceiling; an unconfigured (null) ceiling never trips and never restricts.
+
+**Validates: Requirements 1.2, 1.3, 1.6, 2.5, 3.2**
+
+### Property 3: A cost trip records complete diagnostics
+
+*For any* ceiling decision that tripped, the `errorState` produced by `buildCostErrorState` contains the triggering ceiling type, the configured ceiling value, the measured accumulated cost, and a measurement timestamp.
+
+**Validates: Requirements 1.5, 2.4**
+
+### Property 4: No provider calls after a trip
+
+*For any* debate whose status is `evaluation_failed`, and *for any* benchmark run already marked cost-tripped, the preventive gate prevents initiating a new provider call (per-debate) and prevents starting an additional debate (per-run).
+
+**Validates: Requirements 1.4, 2.3**
+
+### Property 5: A run trip transitions only running or pending debates
+
+*For any* set of debates belonging to a run, when the per-run ceiling is exceeded, exactly the debates whose status is `running` or `pending` transition to `evaluation_failed`, and every debate whose status is neither `running` nor `pending` is left unchanged.
+
+**Validates: Requirements 2.2**
+
+### Property 6: Tripping preserves artifacts and increments the counter exactly once
+
+*For any* debate, applying a cost trip changes only its `status`, `errorState`, and completion timestamp while leaving its turns, provider calls, and other metadata unchanged; and *for any* sequence of trip attempts across a run's debates, the run's `evaluationFailedDebates` counter equals the number of debates whose status changed into `evaluation_failed` from a different status (repeated trips on an already-failed debate leave the counter unchanged).
+
+**Validates: Requirements 5.1, 5.2, 5.3**
+
+### Property 7: Aggregate metrics exclude evaluation-failed debates by default and include them on opt-in
+
+*For any* set of debates, `buildModelMetrics` with default options produces aggregate research metrics equal to those computed over only the non-`evaluation_failed` debates; with the include opt-in set, it produces metrics equal to those computed over all debates.
+
+**Validates: Requirements 5.4, 5.5**
+
+### Property 8: Current-day spend sums only in-window costs
+
+*For any* set of provider-call records with arbitrary timestamps and reported costs, `computeCurrentDaySpend` equals the normalized sum (`0`/`null` → `0`) of the `cost_estimate` values of exactly those records whose `created_at` falls within `[00:00:00.000, 23:59:59.999]` UTC of the current calendar date.
+
+**Validates: Requirements 6.1, 6.5**
+
+### Property 9: Daily cap decision boundary and denial payload
+
+*For any* current-day spend, estimated cost, and cap, the cost guard denies the request if and only if `currentSpend + estimatedCost` is strictly greater than the cap; every denied request reports `currentSpend`, `cap`, and `estimatedCost` in its response and initiates no provider call.
+
+**Validates: Requirements 6.2, 6.3, 6.4**
+
+### Property 10: Ceiling validation accepts exactly the in-range values
+
+*For any* candidate ceiling value, `validateCostCeilings` accepts it if and only if it is a finite number in `[0, 1,000,000]`; rejected values produce a validation error identifying the offending ceiling field.
+
+**Validates: Requirements 3.3**
+
+### Property 11: Document supersede is idempotent and preserves the original
+
+*For any* document content, applying the supersede notice produces output whose first block is the notice and whose remainder is the original content byte-for-byte; applying the notice a second time yields output identical to applying it once (idempotence).
+
+**Validates: Requirements 9.3, 9.4**
+
+### Property 12: Protected columns cannot be dropped, renamed, or retyped
+
+*For any* column operation drawn from the `userVotes`/`debates` column set, the migration guard rejects the operation and names the column if and only if the operation drops, renames, or changes the type of a protected crowd-vote column; operations on non-protected columns are allowed.
+
+**Validates: Requirements 8.4**
+
+## Error Handling
+
+| Scenario | Handling | Requirement |
+|---|---|---|
+| Provider call reports `0`, `null`, or absent cost | Normalized to a `0` contribution; never an error | 4.1, 4.2 |
+| Provider call reports negative / non-numeric cost | Contributes `0`; `invalidCount` incremented; aggregation continues | 4.5 |
+| Per-debate ceiling exceeded | Debate → `evaluation_failed` with cost `errorState`; run counter +1; further calls gated | 1.2, 1.4, 1.5 |
+| Per-run ceiling exceeded | All running/pending debates → `evaluation_failed`; run marked tripped; no new debates started | 2.2, 2.3, 2.4 |
+| Invalid ceiling in Run_Config | `parseBenchmarkRunConfig` throws a field-identifying validation error; no run is created | 3.3 |
+| Invalid ceiling reaches evaluation (should be unreachable) | Run fails before dispatching any further LLM call; failure reason recorded | 3.4 |
+| Governance recompute throws after a call is recorded | Caught and logged (like existing telemetry try/catch); the recorded artifact is never corrupted; the separate daily guard remains fail-closed | non-functional safety |
+| Daily-spend query cannot be executed | `checkCostGuard` returns `allowed: false` with an `error` indication (fail closed) — never allow by default | 6.6 |
+| Migration fails mid-application | Transaction rolls back; schema and data remain intact; error returned | 7.5 |
+| Migration re-applied to already-clean DB | `IF EXISTS`/`IF NOT EXISTS` guards make it a no-op success | 7.6 |
+| Migration would drop/rename/retype a protected column | Rejected before execution; error names the column; nothing changes | 8.4 |
+| Marketplace paper missing or unreadable | No partial writes; error indication returned | 9.5 |
+| Marketplace paper already superseded | Sentinel detected; no duplicate notice added | 9.4 |
+
+**Conventions:**
+- Cost-safety paths fail **closed**: when spend cannot be determined, deny rather than allow.
+- Artifact-preservation paths fail **soft**: a governance error logs and continues so a recorded debate artifact is never lost or mutated incorrectly.
+- All cost `errorState` payloads use `stage: 'cost-governor'` to coexist with existing judge/execution error states.
+
+## Testing Strategy
+
+### Dual Approach
+
+- **Property tests** verify the universal properties above across generated inputs (the pure cost-governance core, metrics filtering, document transform, and column guard).
+- **Unit tests** cover specific examples and the defensive/IO branches that are not input-varying.
+- **Integration tests** cover the Drizzle migration against a real Neon branch and the cross-module wiring (telemetry → governor → DB).
+
+### Property-Based Testing
+
+- **Library:** `fast-check` with the repo's existing Node `node:test` runner (run via `tsx tests/run-unit-tests.ts`). `fast-check` is added as the only new dev dependency; this repo does **not** use vitest. New test files are registered in the `tests/run-unit-tests.ts` `testFiles` array.
+- **Iterations:** minimum **100** runs per property (`fc.assert(..., { numRuns: 100 })`).
+- **Tagging:** each property test carries a comment in the form
+  `// Feature: cost-governor, Property {number}: {property_text}`.
+- **One property → one property test.** Properties 1–12 each map to a single property-based test.
+- **Generators:**
+  - Reported-cost arrays mixing `fc.double()`, negatives, `NaN`, `Infinity`, `null`, and `undefined` (Property 1).
+  - Accumulated/ceiling pairs including `null` ceilings and values straddling the boundary (Properties 2, 9, 10), with explicit boundary cases at exact equality.
+  - Debate-set generators with random `status` values (Properties 5, 7) and random transition sequences (Property 6).
+  - Timestamp generators clustered around the UTC midnight boundary (Property 8).
+  - Document-content generators including empty, notice-already-present, and Unicode content (Property 11).
+  - Column-operation generators over the known `userVotes`/`debates` column set (Property 12).
+
+### Unit Tests (examples / defensive branches)
+
+- Runner reads ceilings before the first debate launches (Req 3.1).
+- Invalid ceiling injected directly into evaluation fails the run before dispatch (Req 3.4).
+- `checkCostGuard` with a throwing spend query returns `allowed: false, error: true` (Req 6.6).
+- Fetching/exporting an `evaluation_failed` debate returns retained turns, provider calls, metadata, and `errorState` (Req 5.6).
+- Supersede notice ordering and roadmap reference on a sample doc (Req 9.1, 9.2); missing-file error path (Req 9.5).
+
+### Integration Tests (Neon branch)
+
+- Apply `0005` migration on a seeded branch: `user_profiles` and betting columns removed; relocated to the `archive` schema; unreachable from active schema (Req 7.1–7.4, 7.7).
+- Induced mid-migration failure rolls back with schema + data intact (Req 7.5); re-application is a no-op success (Req 7.6).
+- Row-count and column/value preservation for `userVotes` and `debates` across migration (Req 8.1, 8.2, 8.3, 8.5).
+
+### Schema Guard (static)
+
+- A static assertion test over `lib/db/schema.ts` confirming the protected column set is present and no relation references `userProfiles` (Req 7.3, complements Property 12).
+
+### Verification Commands
+
+After implementation, run the project baselines (`npm run build`, `npm run typecheck`, `npm run lint`, `npm test`). Migration integration tests run against a disposable Neon branch so production data is never touched.

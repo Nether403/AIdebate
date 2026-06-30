@@ -79,7 +79,6 @@ export const voteSchema = z.object({
   vote: z.enum(['pro', 'con', 'tie']),
   confidence: z.number().int().min(1).max(5).optional(),
   reasoning: z.string().max(500).optional(),
-  wagerAmount: z.number().int().min(0).max(500).optional(),
 })
 
 // Judge evaluation request schema

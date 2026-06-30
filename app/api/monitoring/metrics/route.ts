@@ -48,15 +48,8 @@ export async function GET(request: Request) {
       })
       .from(userVotes)
 
-    // Betting metrics (from user votes with wagers)
-    const bettingMetrics = await db
-      .select({
-        total: count(),
-        totalWagered: sql<number>`COALESCE(SUM(wager_amount), 0)`,
-        avgWager: sql<number>`COALESCE(AVG(wager_amount), 0)`,
-      })
-      .from(userVotes)
-      .where(sql`created_at >= ${since} AND wager_amount > 0`)
+    // Betting metrics removed: gamification columns (wager_amount) were dropped
+    // from userVotes as part of the schema cleanup (cost-governor, Req 7.2).
 
     // Recent debates (for monitoring)
     const recentDebates = await db
@@ -104,7 +97,6 @@ export async function GET(request: Request) {
       metrics: {
         debates: debateMetrics[0],
         votes: voteMetrics[0],
-        betting: bettingMetrics[0],
         performance,
       },
       health,

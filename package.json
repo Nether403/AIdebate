@@ -23,6 +23,7 @@
     "models:validate": "tsx --env-file=.env scripts/validate-models.ts",
     "prompts:seed": "tsx --env-file=.env scripts/seed-prompts.ts",
     "judge:calibrate": "tsx --env-file=.env scripts/judge-calibration.ts",
+    "docs:mark-superseded": "tsx scripts/mark-superseded.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
@@ -73,6 +74,7 @@
     "@types/uuid": "^10.0.0",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.3",
+    "fast-check": "^4.8.0",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6"
   }

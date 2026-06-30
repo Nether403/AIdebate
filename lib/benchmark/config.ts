@@ -19,6 +19,9 @@ export const benchmarkDebateConfigSchema = z.object({
 export const benchmarkRunConfigSchema = z.object({
   name: z.string().min(1).default('benchmark-run'),
   description: z.string().optional(),
+  // Optional cost ceilings (USD). Absent => unconfigured, no enforcement for that scope.
+  perDebateCostCeilingUsd: z.number().finite().min(0).max(1_000_000).optional(),
+  perRunCostCeilingUsd: z.number().finite().min(0).max(1_000_000).optional(),
   debates: z.array(benchmarkDebateConfigSchema).min(1),
 })
 

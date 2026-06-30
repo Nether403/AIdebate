@@ -1,12 +1,34 @@
 # Project State
 
-Last updated: 2026-06-29
+Last updated: 2026-06-30
 
 ## Current Status
 
 AI Debate Arena is under revival as a focused LLM debate benchmarking and alignment-research workbench. It is not production-ready.
 
 `docs/REVIVAL_ROADMAP.md` is the source of truth for product direction. Older product, deployment, gamification, and production-readiness documents should be treated as stale unless they are explicitly updated to match the roadmap.
+
+## Testing Stack
+
+Unit and property tests run on Node's built-in `node:test` runner via `tsx`, orchestrated by `tests/run-unit-tests.ts` (`npm test` → `npm run test:unit`). Property-based tests use `fast-check` (the only test framework dependency). **This project does not use vitest or jest.** New test files must be registered in the `testFiles` array in `tests/run-unit-tests.ts`. Integration tests (`tests/run-integration-tests.ts`, `npm run test:integration`) require a disposable Neon branch and skip cleanly otherwise.
+
+## 2026-06-30 Cost Governor, Schema Cleanup, and Documentation Correction
+
+The `cost-governor` spec was implemented end to end (50 tasks). It bundles three tracks that share the Phase-7 cost-safety / data-integrity goal.
+
+**Cost governor (real recorded-cost safety).** A pure cost-governance core in `lib/cost/` (`aggregate.ts`, `ceiling.ts`, `error-state.ts`) plus a DB shell `lib/cost/governor.ts`. It sums `llm_provider_calls.cost_estimate` per debate and per run (treating `$0`/`null` as a `0` contribution; negative/non-numeric values are counted as invalid and contribute `0`), and trips offending debates to `evaluation_failed` when a configured per-debate or per-run ceiling is strictly exceeded. Trips only change `status`/`errorState`/`completedAt` and increment `benchmark_runs.evaluationFailedDebates` exactly once per genuine transition (idempotent). Wired into `recordLLMProviderCall` (fails soft — governance errors log and never corrupt the recorded artifact) and into `runBenchmark` (reads ceilings before dispatch, stops launching debates once the run is tripped, fails the run before dispatch on an invalid ceiling). Ceilings are configured per run via `benchmark_runs.config.perDebateCostCeilingUsd` / `perRunCostCeilingUsd`.
+
+**Daily cost-guard fix.** `lib/middleware/cost-guard.ts` previously hardcoded `currentSpend = 0`, so the daily cap never tripped. It now computes real `Current_Day_Spend` from `llm_provider_calls` over the current UTC day window `[00:00:00.000, 23:59:59.999]`, denies when `currentSpend + estimatedCost > cap`, returns the `currentSpend`/`cap`/`estimatedCost` trio, and fails closed (deny with `error: true`) if spend cannot be computed.
+
+**Schema cleanup.** Removed the legacy gamification footgun from the active schema: the `userProfiles` table and the `user_votes` betting columns (`wagerAmount`, `oddsAtBet`, `payoutAmount`). Plain crowd-voting columns and the `debates` crowd-tally columns are preserved and protected by a pure migration guard (`lib/db/migration-guard.ts`) and a static schema-guard test. Migration `drizzle/0005_clear_johnny_blaze.sql` performs the removal in a transaction, relocates the dropped structures into an unreachable `archive` schema, and is idempotent. Callers referencing the removed columns were updated (`lib/middleware/validation.ts`, `app/api/monitoring/metrics/route.ts`).
+
+**Metrics opt-in.** `buildModelMetrics` (`lib/benchmark/dataset.ts`) gained `{ includeEvaluationFailed?: boolean }` — default `false` keeps the current exclusion of `evaluation_failed` debates from win/loss/tie aggregation; `true` includes them. Note: the metrics HTTP routes do not currently call `buildModelMetrics` (the only caller is `scripts/export-dataset.ts`), so no query param was wired (tracked in `docs/KNOWN_LIMITATIONS.md`).
+
+**Documentation correction.** `scripts/mark-superseded.ts` (npm script `docs:mark-superseded`) prepends an idempotent "superseded" notice — referencing `docs/REVIVAL_ROADMAP.md` as the source of truth — to the archived "marketplace of truth" paper (`docs/archive/research/The Dialectic Engine_...md`), preserving the original content byte-for-byte below.
+
+**Correctness properties.** Properties 1–12 from the design are each covered by a `fast-check` property test (100+ runs, tagged `// Feature: cost-governor, Property {n}: ...`), alongside example/unit tests and a safety-guarded Neon integration test for migration 0005. `fast-check` was added as the only new dev dependency; tests run on the existing `node:test` runner (the spec text's "vitest" reference was inaccurate — this repo has never used vitest).
+
+Verified: `npm run build` exit 0 (28 routes), `npm run typecheck` clean, `npm run lint` 0 errors (65 pre-existing warnings), `npm test` 143/143 passing.
 
 ## 2026-06-29 Judge-Parse Robustness and Model-Slug Drift
 

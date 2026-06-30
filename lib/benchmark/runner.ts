@@ -7,6 +7,7 @@ import type { BenchmarkRunConfig } from './config'
 import { summarizeBenchmarkStatuses } from './summary'
 import { collectPendingSnapshots } from './snapshots'
 import { getTopicSetTopicIds, resolveTopicSetSelections } from '@/lib/topics/topic-sets'
+import { getRunCeilings, isRunCostTripped, InvalidCostCeilingError } from '@/lib/cost/governor'
 
 export interface BenchmarkRunResult {
   benchmarkRunId: string
@@ -99,6 +100,36 @@ export async function runBenchmark(config: BenchmarkRunConfig): Promise<Benchmar
     .set({ status: 'running', startedAt: new Date() })
     .where(eq(benchmarkRuns.id, benchmarkRunId))
 
+  // Read + validate cost ceilings before launching any debate (Req 3.1). If a
+  // stored ceiling is invalid/out-of-range it reaches evaluation here; fail the
+  // run before dispatching any debate rather than running unbounded (Req 3.4).
+  // No dedicated failure-reason column exists on benchmark_runs, so the reason
+  // is logged and the run is marked failed.
+  try {
+    await getRunCeilings(benchmarkRunId)
+  } catch (error) {
+    if (error instanceof InvalidCostCeilingError) {
+      console.error(
+        `[Benchmark] Run ${benchmarkRunId} failed cost-ceiling validation before dispatch:`,
+        error.message
+      )
+      await db.update(benchmarkRuns)
+        .set({ status: 'failed', completedAt: new Date() })
+        .where(eq(benchmarkRuns.id, benchmarkRunId))
+
+      return {
+        benchmarkRunId,
+        debateIds: [],
+        status: 'failed',
+        completedDebates: 0,
+        failedDebates: 0,
+        evaluationFailedDebates: 0,
+        modelSnapshotCount: 0,
+      }
+    }
+    throw error
+  }
+
   const modelSnapshotCount = await persistModelSnapshots(benchmarkRunId, config)
 
   // Resolve any topic-set references into concrete topicIds (round-robin across
@@ -114,6 +145,30 @@ export async function runBenchmark(config: BenchmarkRunConfig): Promise<Benchmar
 
   try {
     for (const debateConfig of resolvedDebates) {
+      // Preventive per-run gate (Req 2.3): once the run's accumulated cost has
+      // tripped its per-run ceiling, stop starting new debates. Remaining
+      // not-yet-started debates simply aren't launched; already-started debates
+      // are unaffected here and the final summary still reflects their status.
+      // Up-front validation already ran, so isRunCostTripped won't throw for an
+      // invalid ceiling; any other transient error fails closed (stop launching)
+      // so the run never keeps spending past an unknown cost state.
+      let runTripped = false
+      try {
+        runTripped = await isRunCostTripped(benchmarkRunId)
+        if (runTripped) {
+          console.warn(
+            `[Benchmark] Run ${benchmarkRunId} hit its per-run cost ceiling; stopping launch of further debates.`
+          )
+        }
+      } catch (error) {
+        console.error(
+          `[Benchmark] Run ${benchmarkRunId} cost-gate check failed; stopping launch of further debates:`,
+          error instanceof Error ? error.message : error
+        )
+        runTripped = true
+      }
+      if (runTripped) break
+
       // Isolate each debate: a single failed/evaluation_failed/throwing debate
       // must not abort the whole run. executeDebate persists the failure state
       // with diagnostics; we log and continue so remaining debates still run and

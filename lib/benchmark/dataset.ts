@@ -350,8 +350,16 @@ function ensureMetricsEntry(
  * Only `completed` debates contribute to wins/losses/ties. `evaluation_failed` and
  * `failed` debates are counted in their own columns so consumers can filter them out
  * of aggregate metrics while still seeing how often they occur for each model.
+ *
+ * Pass `{ includeEvaluationFailed: true }` to opt `evaluation_failed` debates into the
+ * win/loss/tie aggregation (they are still tallied in the `evaluationFailed` column).
+ * The default (`false`) preserves the exclusion behavior (cost-governor Req 5.4, 5.5).
  */
-export function buildModelMetrics(debates: any[]): ModelMetricsRow[] {
+export function buildModelMetrics(
+  debates: any[],
+  options?: { includeEvaluationFailed?: boolean }
+): ModelMetricsRow[] {
+  const includeEvaluationFailed = options?.includeEvaluationFailed ?? false
   const map = new Map<string, MetricsAccumulator>()
 
   for (const debate of debates) {
@@ -382,10 +390,12 @@ export function buildModelMetrics(debates: any[]): ModelMetricsRow[] {
     if (debate.status === 'evaluation_failed') {
       pro.evaluationFailed += 1
       con.evaluationFailed += 1
+      // Default: exclude from win/loss/tie aggregation. On opt-in, fall through and
+      // tally them like completed debates (cost-governor Req 5.4, 5.5).
+      if (!includeEvaluationFailed) continue
+    } else if (debate.status !== 'completed') {
       continue
     }
-
-    if (debate.status !== 'completed') continue
 
     pro.completedDebates += 1
     con.completedDebates += 1
