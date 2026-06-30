@@ -1,0 +1,96 @@
+[2m[WebServer] [22m
+[2m[WebServer] [22m> aidebate@1.0.0 build
+[2m[WebServer] [22m> next build
+[2m[WebServer] [22m
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[2m[WebServer] [22m   [1m[38;2;173;127;168mΓû▓ Next.js 16.0.3[39m[22m (Turbopack)
+[2m[WebServer] [22m   - Environments: .env
+[2m[WebServer] [22m   - Experiments (use with caution):
+[2m[WebServer] [22m     ┬╖ optimizePackageImports
+[2m[WebServer] [22m     ┬╖ serverActions
+[2m[WebServer] [22m
+[WebServer]  ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+[2m[WebServer] [22m [37m[1m [22m[39m Creating an optimized production build ...
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[2m[WebServer] [22m [32m[1mΓ£ô[22m[39m Compiled successfully in 13.2s
+[2m[WebServer] [22m [37m[1m [22m[39m Running TypeScript ...
+[2m[WebServer] [22m [37m[1m [22m[39m Collecting page data using 7 workers ...
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[WebServer]  ΓÜá Using edge runtime on a page currently disables static generation for that page
+[2m[WebServer] [22m [37m[1m [22m[39m Generating static pages using 7 workers (0/29) ...
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[2m[WebServer] [22m [37m[1m [22m[39m Generating static pages using 7 workers (7/29) 
+[2m[WebServer] [22m [37m[1m [22m[39m Generating static pages using 7 workers (14/29) 
+[2m[WebServer] [22m [37m[1m [22m[39m Generating static pages using 7 workers (21/29) 
+[2m[WebServer] [22m [32m[1mΓ£ô[22m[39m Generating static pages using 7 workers (29/29) in 3.2s
+[2m[WebServer] [22m [37m[1m [22m[39m Finalizing page optimization ...
+[2m[WebServer] [22m
+[2m[WebServer] [22m[4mRoute (app)[24m
+[2m[WebServer] [22mΓöî Γùï /
+[2m[WebServer] [22mΓö£ Γùï /_not-found
+[2m[WebServer] [22mΓö£ Γùï /admin
+[2m[WebServer] [22mΓö£ Γùï /admin/topics
+[2m[WebServer] [22mΓö£ ╞Æ /api/admin/metrics
+[2m[WebServer] [22mΓö£ ╞Æ /api/admin/topics
+[2m[WebServer] [22mΓö£ ╞Æ /api/admin/topics/[id]
+[2m[WebServer] [22mΓö£ ╞Æ /api/admin/topics/validate
+[2m[WebServer] [22mΓö£ ╞Æ /api/debate/[debateId]
+[2m[WebServer] [22mΓö£ ╞Æ /api/debate/judge
+[2m[WebServer] [22mΓö£ ╞Æ /api/debate/run
+[2m[WebServer] [22mΓö£ ╞Æ /api/debate/stream/[debateId]
+[2m[WebServer] [22mΓö£ ╞Æ /api/debates/[id]/export
+[2m[WebServer] [22mΓö£ ╞Æ /api/debates/[id]/og-image
+[2m[WebServer] [22mΓö£ ╞Æ /api/health
+[2m[WebServer] [22mΓö£ ╞Æ /api/models
+[2m[WebServer] [22mΓö£ ╞Æ /api/monitoring/costs
+[2m[WebServer] [22mΓö£ ╞Æ /api/monitoring/metrics
+[2m[WebServer] [22mΓö£ ╞Æ /api/personas
+[2m[WebServer] [22mΓö£ ╞Æ /api/topics
+[2m[WebServer] [22mΓö£ ╞Æ /api/topics/categories
+[2m[WebServer] [22mΓö£ ╞Æ /api/topics/submit
+[2m[WebServer] [22mΓö£ Γùï /components-showcase
+[2m[WebServer] [22mΓö£ ╞Æ /debate/[debateId]
+[2m[WebServer] [22mΓö£ Γùï /debate/example
+[2m[WebServer] [22mΓö£ Γùï /debate/new
+[2m[WebServer] [22mΓö£ Γùï /health
+[2m[WebServer] [22mΓö£ Γùï /showcase
+[2m[WebServer] [22mΓö£ Γùï /showcase/eval-report
+[2m[WebServer] [22mΓö£ Γùï /showcase/live-debate
+[2m[WebServer] [22mΓö£ Γùï /showcase/regression-gate
+[2m[WebServer] [22mΓö£ Γùï /showcase/steelman
+[2m[WebServer] [22mΓö£ Γùï /showcase/synthetic-data
+[2m[WebServer] [22mΓöö Γùï /topics/submit
+[2m[WebServer] [22m
+[2m[WebServer] [22m
+[2m[WebServer] [22m╞Æ Proxy (Middleware)
+[2m[WebServer] [22m
+[2m[WebServer] [22mΓùï  (Static)   prerendered as static content
+[2m[WebServer] [22m╞Æ  (Dynamic)  server-rendered on demand
+[2m[WebServer] [22m
+[2m[WebServer] [22m
+[2m[WebServer] [22m> aidebate@1.0.0 start
+[2m[WebServer] [22m> next start -p 3100
+[2m[WebServer] [22m
+[2m[WebServer] [22m   [1m[38;2;173;127;168mΓû▓ Next.js 16.0.3[39m[22m
+[2m[WebServer] [22m   - Local:         http://localhost:3100
+[2m[WebServer] [22m   - Network:       http://192.168.2.8:3100
+[2m[WebServer] [22m
+[2m[WebServer] [22m [32m[1mΓ£ô[22m[39m Starting...
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[2m[WebServer] [22m [32m[1mΓ£ô[22m[39m Ready in 1069ms
+
+Running 4 tests using 4 workers
+
+  ok 3 [chromium] ΓÇ║ e2e\performance.spec.ts:104:7 ΓÇ║ hero render budget (Req 11.1) ΓÇ║ / ΓÇö hero LCP/FCP renders within 2.5s of navigation start (10.3s)
+  ok 1 [chromium] ΓÇ║ e2e\performance.spec.ts:127:7 ΓÇ║ image optimization & display ratio (Req 11.2) ΓÇ║ / ΓÇö brand images are optimized and scaled near display dimensions (10.5s)
+  ok 4 [chromium] ΓÇ║ e2e\performance.spec.ts:228:9 ΓÇ║ zero CLS during decorative animation (Req 11.3) ΓÇ║ / ΓÇö decoration causes no cumulative layout shift (13.2s)
+  ok 2 [chromium] ΓÇ║ e2e\performance.spec.ts:228:9 ΓÇ║ zero CLS during decorative animation (Req 11.3) ΓÇ║ /showcase ΓÇö decoration causes no cumulative layout shift (13.5s)
+
+  4 passed (1.0m)

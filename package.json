@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "test": "npm run test:unit",
     "test:unit": "tsx tests/run-unit-tests.ts",
+    "test:e2e": "playwright test",
     "test:integration": "tsx --env-file=.env tests/run-integration-tests.ts",
     "test:live": "tsx --env-file=.env tests/run-live-provider-tests.ts",
     "debate:run": "tsx --env-file=.env scripts/run-debate.ts",
@@ -70,6 +71,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.56.1",
     "@types/uuid": "^10.0.0",
     "eslint": "^9.39.1",

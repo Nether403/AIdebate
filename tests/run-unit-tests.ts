@@ -34,6 +34,19 @@ const testFiles = [
   'lib/db/__tests__/migration-guard.test.ts',
   'scripts/__tests__/mark-superseded.test.ts',
   'scripts/__tests__/mark-superseded.unit.test.ts',
+  'lib/design-system/__tests__/tokens-resolution.test.ts',
+  'lib/design-system/__tests__/contrast.test.ts',
+  'lib/design-system/__tests__/motion.test.ts',
+  'lib/design-system/__tests__/showcase-entries.test.ts',
+  'lib/design-system/__tests__/cta-nav-targets.test.ts',
+  'lib/design-system/__tests__/nav-allowlist.test.ts',
+  'lib/design-system/__tests__/image-alt.test.ts',
+  'components/showcase/__tests__/primitives.test.ts',
+  'components/showcase/__tests__/hub-cards.test.ts',
+  'app/showcase/__tests__/demo-shell-conformance.test.ts',
+  '__tests__/middleware-redirect.test.ts',
+  'app/__tests__/landing-structure.test.ts',
+  '__tests__/showcase-static-scan.test.ts',
 ]
 
 const stream = run({ files: testFiles, concurrency: true })

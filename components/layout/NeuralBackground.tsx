@@ -11,6 +11,26 @@ interface Particle {
   color: string
 }
 
+/**
+ * NeuralBackground — the SINGLE global Decorative_Animation for the Showcase_Experience.
+ *
+ * Decorative-animation budget (Requirement 2.4): a single viewport may run at most THREE
+ * concurrent Decorative_Animations. This canvas is the one global decorative animation and
+ * therefore consumes exactly ONE of those slots on every viewport, leaving headroom for at
+ * most TWO additional page-local decorative animations per viewport. Page surfaces must not
+ * exceed that remaining budget of two.
+ *
+ * Reduced motion (Requirement 2.7): under `prefers-reduced-motion: reduce` the
+ * requestAnimationFrame loop never starts — and is stopped immediately if the preference is
+ * toggled on at runtime. A single static frame is still painted so the layered-depth neon
+ * anchor stays visible, just without any motion. The media-query listener and any pending
+ * RAF are cleaned up on unmount.
+ *
+ * Zero layout shift (Requirement 11.3): the canvas is `position: fixed`, pulled out of normal
+ * document flow behind content (z-0, pointer-events-none) and sized to the viewport, so
+ * animating it causes no positional displacement of surrounding elements — cumulative layout
+ * shift stays at 0.
+ */
 export function NeuralBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -21,7 +41,7 @@ export function NeuralBackground() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let animationFrameId: number
+    let animationFrameId: number | null = null
     let particles: Particle[] = []
     const particleCount = 45
     const connectionDistance = 120
@@ -38,11 +58,7 @@ export function NeuralBackground() {
       radius: 180
     }
 
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-      initParticles()
-    }
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 
     const initParticles = () => {
       particles = []
@@ -58,10 +74,8 @@ export function NeuralBackground() {
       }
     }
 
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      
-      // Update and draw particles
+    // Advance particle positions one step (motion). Skipped entirely under reduced motion.
+    const stepParticles = () => {
       particles.forEach((p) => {
         p.x += p.vx
         p.y += p.vy
@@ -81,8 +95,15 @@ export function NeuralBackground() {
             p.y += (dy / dist) * force * 0.5
           }
         }
+      })
+    }
 
-        // Draw node
+    // Paint the current particle positions. Used both per animation frame and for the
+    // single static frame rendered under reduced motion.
+    const paint = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      particles.forEach((p) => {
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
         ctx.fillStyle = p.color
@@ -109,12 +130,40 @@ export function NeuralBackground() {
           }
         }
       }
-
-      animationFrameId = requestAnimationFrame(draw)
     }
 
-    window.addEventListener('resize', resizeCanvas)
-    
+    const animate = () => {
+      stepParticles()
+      paint()
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    const stop = () => {
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = null
+      }
+    }
+
+    // Start the loop, or — under reduced motion — paint a single static frame and stay put.
+    const start = () => {
+      stop()
+      if (reducedMotionQuery.matches) {
+        paint()
+      } else {
+        animate()
+      }
+    }
+
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+      initParticles()
+      // Reflow the static frame immediately when reduced motion is active; the running loop
+      // repaints on its own.
+      if (reducedMotionQuery.matches) paint()
+    }
+
     const handleMouseMove = (e: MouseEvent) => {
       mouse.x = e.clientX
       mouse.y = e.clientY
@@ -125,17 +174,25 @@ export function NeuralBackground() {
       mouse.y = null
     }
 
+    // Start/stop the loop whenever the reduced-motion preference changes at runtime.
+    const handleMotionPreferenceChange = () => {
+      start()
+    }
+
+    window.addEventListener('resize', resizeCanvas)
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseleave', handleMouseLeave)
+    reducedMotionQuery.addEventListener('change', handleMotionPreferenceChange)
 
     resizeCanvas()
-    draw()
+    start()
 
     return () => {
       window.removeEventListener('resize', resizeCanvas)
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseleave', handleMouseLeave)
-      cancelAnimationFrame(animationFrameId)
+      reducedMotionQuery.removeEventListener('change', handleMotionPreferenceChange)
+      stop()
     }
   }, [])
 
@@ -144,6 +201,7 @@ export function NeuralBackground() {
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-0 opacity-80"
       style={{ mixBlendMode: 'screen' }}
+      aria-hidden="true"
     />
   )
 }

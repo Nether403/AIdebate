@@ -1,11 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, GitPullRequest, CheckCircle2, XCircle, Loader2, Play } from 'lucide-react'
+import { GitPullRequest, CheckCircle2, XCircle, Loader2, Play } from 'lucide-react'
+import { ShowcaseShell } from '@/components/showcase/ShowcaseShell'
+import { BackToHub } from '@/components/showcase/BackToHub'
+import { GlassPanel } from '@/components/showcase/GlassPanel'
+import { SampleDataLabel } from '@/components/showcase/SampleDataLabel'
+import { JudgeSignalLabel } from '@/components/showcase/JudgeSignalLabel'
 import { EmbedNote } from '@/components/showcase/EmbedNote'
 
 type StepState = 'idle' | 'running' | 'done'
+
+/** Delay between each simulated gate step (user-triggered, one-shot reveal). */
+const STEP_INTERVAL_MS = 750
 
 const steps = [
   'Detecting model change: openai/gpt-5.1 → openai/gpt-5.2',
@@ -28,124 +35,132 @@ export default function RegressionGateDemo() {
       i += 1
       if (i < steps.length) {
         setActiveStep(i)
-        setTimeout(tick, 750)
+        setTimeout(tick, STEP_INTERVAL_MS)
       } else {
         setActiveStep(steps.length)
         setState('done')
       }
     }
-    setTimeout(tick, 750)
+    setTimeout(tick, STEP_INTERVAL_MS)
   }
 
   const failed = state === 'done'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 py-10">
-      <div className="max-w-4xl mx-auto px-4">
-        <Link href="/showcase" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white mb-6">
-          <ArrowLeft className="w-4 h-4" /> Showcase
-        </Link>
-
-        <div className="mb-2 text-sm font-medium text-emerald-400">Model Regression Gate</div>
-        <h1 className="text-3xl font-bold text-white mb-2">Catch persuasive-but-wrong regressions before they ship</h1>
-        <p className="text-slate-400 mb-6 leading-relaxed">
+    <ShowcaseShell
+      title="Catch persuasive-but-wrong regressions before they ship"
+      intro={
+        <>
           A CI check that runs a debate benchmark whenever you change the model behind a product, then blocks the merge
           if the new model wins more often by being <em>persuasive</em> rather than <em>correct</em>.
-        </p>
+        </>
+      }
+    >
+      <div className="flex flex-wrap items-center gap-[var(--space-md)]">
+        <BackToHub />
+        <SampleDataLabel />
+      </div>
 
-        {/* Mock PR / CI panel */}
-        <div className="rounded-xl border border-slate-700 bg-slate-900/70 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700 bg-slate-800/60">
-            <GitPullRequest className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm text-slate-200 font-medium">PR #482 · Bump assistant model to gpt-5.2</span>
-            <span className="ml-auto text-xs text-slate-400">checks</span>
-          </div>
-
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                {state === 'idle' && <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />}
-                {state === 'running' && <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />}
-                {state === 'done' && <XCircle className="w-4 h-4 text-red-400" />}
-                <span className="text-sm font-medium text-slate-200">debate-benchmark / alignment-gate</span>
-              </div>
-              <button
-                onClick={run}
-                disabled={state === 'running'}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-              >
-                {state === 'running' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                {state === 'idle' ? 'Run gate' : state === 'running' ? 'Running…' : 'Re-run'}
-              </button>
-            </div>
-
-            {/* Steps log */}
-            <div className="font-mono text-xs bg-slate-950/80 border border-slate-800 rounded-lg p-3 space-y-1.5 min-h-[150px]">
-              {state === 'idle' && <p className="text-slate-500">Waiting to run. Click “Run gate”.</p>}
-              {state !== 'idle' &&
-                steps.map((s, idx) => {
-                  const isDone = idx < activeStep
-                  const isActive = idx === activeStep
-                  return (
-                    <div key={s} className="flex items-start gap-2">
-                      {isDone ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
-                      ) : isActive ? (
-                        <Loader2 className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0 animate-spin" />
-                      ) : (
-                        <span className="w-3.5 h-3.5 rounded-full border border-slate-600 mt-0.5 shrink-0" />
-                      )}
-                      <span className={isDone || isActive ? 'text-slate-300' : 'text-slate-600'}>{s}</span>
-                    </div>
-                  )
-                })}
-            </div>
-
-            {/* Result */}
-            {failed && (
-              <div className="mt-4 space-y-4">
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <Metric label="Win rate Δ" value="+14%" sub="gpt-5.2 vs gpt-5.1" tone="warn" />
-                  <Metric label="Factuality Δ" value="−9%" sub="claims holding up" tone="bad" />
-                  <Metric label="Charismatic-liar wins" value="3 / 12" sub="persuasion ≠ truth" tone="bad" />
-                </div>
-                <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <XCircle className="w-4 h-4 text-red-400" />
-                    <span className="text-sm font-semibold text-red-300">Gate failed — merge blocked</span>
-                  </div>
-                  <p className="text-sm text-red-100/80 leading-relaxed">
-                    gpt-5.2 wins more debates overall, but its advantage comes disproportionately from arguments that the
-                    fact-checker flagged as weaker. The persuasion-vs-truth divergence crossed the configured threshold,
-                    so this looks like a persuasiveness gain rather than a reasoning gain. Review before shipping.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+      {/* Mock PR / CI panel */}
+      <GlassPanel className="overflow-hidden rounded-card">
+        <div className="flex items-center gap-[var(--space-sm)] border-b border-border bg-surface-raised px-[var(--space-md)] py-[var(--space-sm)]">
+          <GitPullRequest className="h-4 w-4 text-accent-primary" aria-hidden="true" />
+          <span className="text-caption font-medium text-text">PR #482 · Bump assistant model to gpt-5.2</span>
+          <span className="ml-auto text-caption text-text-muted">checks</span>
         </div>
 
-        <EmbedNote
-          title="How this embeds in CI"
-          description="Run the benchmark as a step in your pipeline and fail the job on a divergence regression. Models are validated first so a deprecated slug can't silently pass the gate."
-          snippet={`# .github/workflows/model-upgrade.yml
+        <div className="p-[var(--space-md)]">
+          <div className="mb-[var(--space-md)] flex items-center justify-between gap-[var(--space-md)]">
+            <div className="flex items-center gap-[var(--space-sm)]">
+              {state === 'idle' && <span className="h-2.5 w-2.5 rounded-pill bg-text-muted" aria-hidden="true" />}
+              {state === 'running' && <Loader2 className="h-4 w-4 animate-spin text-accent-4" aria-hidden="true" />}
+              {state === 'done' && <XCircle className="h-4 w-4 text-accent-3" aria-hidden="true" />}
+              <span className="text-caption font-medium text-text">debate-benchmark / alignment-gate</span>
+            </div>
+            <button
+              onClick={run}
+              disabled={state === 'running'}
+              className="inline-flex min-h-11 items-center gap-[var(--space-xs)] rounded-pill bg-accent-primary px-[var(--space-md)] py-[var(--space-xs)] text-caption font-medium text-bg transition-colors hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+            >
+              {state === 'running' ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Play className="h-4 w-4" aria-hidden="true" />
+              )}
+              {state === 'idle' ? 'Run gate' : state === 'running' ? 'Running…' : 'Re-run'}
+            </button>
+          </div>
+
+          {/* Steps log */}
+          <div className="min-h-40 space-y-1.5 rounded-card border border-border bg-surface px-[var(--space-md)] py-[var(--space-sm)] font-mono text-caption">
+            {state === 'idle' && <p className="text-text-muted">Waiting to run. Click “Run gate”.</p>}
+            {state !== 'idle' &&
+              steps.map((s, idx) => {
+                const isDone = idx < activeStep
+                const isActive = idx === activeStep
+                return (
+                  <div key={s} className="flex items-start gap-[var(--space-xs)]">
+                    {isDone ? (
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-primary" aria-hidden="true" />
+                    ) : isActive ? (
+                      <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-accent-4" aria-hidden="true" />
+                    ) : (
+                      <span className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-pill border border-border" aria-hidden="true" />
+                    )}
+                    <span className={isDone || isActive ? 'text-text' : 'text-text-muted'}>{s}</span>
+                  </div>
+                )
+              })}
+          </div>
+
+          {/* Result — derived from judge / fact-check signals, so label it (Req 6.1). */}
+          {failed && (
+            <div className="mt-[var(--space-md)] space-y-[var(--space-md)]">
+              <div className="flex flex-wrap items-center gap-[var(--space-sm)]">
+                <span className="text-caption font-medium text-text">Gate result</span>
+                <JudgeSignalLabel className="ml-auto" />
+              </div>
+              <div className="grid gap-[var(--space-sm)] sm:grid-cols-3">
+                <Metric label="Win rate Δ" value="+14%" sub="gpt-5.2 vs gpt-5.1" tone="warn" />
+                <Metric label="Factuality Δ" value="−9%" sub="claims holding up" tone="bad" />
+                <Metric label="Charismatic-liar wins" value="3 / 12" sub="persuasion ≠ truth" tone="bad" />
+              </div>
+              <div className="rounded-card border border-accent-3/40 bg-accent-3/10 p-[var(--space-md)]">
+                <div className="mb-1 flex items-center gap-[var(--space-xs)]">
+                  <XCircle className="h-4 w-4 text-accent-3" aria-hidden="true" />
+                  <span className="text-caption font-semibold text-accent-3">Gate failed — merge blocked</span>
+                </div>
+                <p className="text-body leading-relaxed text-text-muted">
+                  gpt-5.2 wins more debates overall, but its advantage comes disproportionately from arguments that the
+                  fact-checker flagged as weaker. The persuasion-vs-truth divergence crossed the configured threshold,
+                  so this looks like a persuasiveness gain rather than a reasoning gain. Review before shipping.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </GlassPanel>
+
+      <EmbedNote
+        title="How this embeds in CI"
+        description="Run the benchmark as a step in your pipeline and fail the job on a divergence regression. Models are validated first so a deprecated slug can't silently pass the gate."
+        snippet={`# .github/workflows/model-upgrade.yml
 - run: npm run models:validate
 - run: npm run benchmark:run -- --config configs/alignment-gate.json
 - run: node scripts/check-divergence.js --max-charismatic-liar-rate 0.15
   # exits non-zero -> merge blocked`}
-        />
-      </div>
-    </div>
+      />
+    </ShowcaseShell>
   )
 }
 
 function Metric({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: 'good' | 'warn' | 'bad' }) {
-  const color = tone === 'good' ? 'text-emerald-400' : tone === 'warn' ? 'text-amber-400' : 'text-red-400'
+  const color = tone === 'good' ? 'text-accent-primary' : tone === 'warn' ? 'text-accent-4' : 'text-accent-3'
   return (
-    <div className="rounded-lg bg-slate-900/60 border border-slate-700 p-3">
-      <p className="text-xs text-slate-400 mb-1">{label}</p>
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
+    <div className="rounded-card border border-border bg-surface-raised p-[var(--space-sm)]">
+      <p className="mb-1 text-caption text-text-muted">{label}</p>
+      <p className={`text-h3 font-bold ${color}`}>{value}</p>
+      <p className="mt-0.5 text-caption text-text-muted">{sub}</p>
     </div>
   )
 }

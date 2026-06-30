@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Database, Copy, Check } from 'lucide-react'
+import { Database, Copy, Check } from 'lucide-react'
+import { ShowcaseShell } from '@/components/showcase/ShowcaseShell'
+import { BackToHub } from '@/components/showcase/BackToHub'
+import { SampleDataLabel } from '@/components/showcase/SampleDataLabel'
+import { GlassPanel } from '@/components/showcase/GlassPanel'
 import { EmbedNote } from '@/components/showcase/EmbedNote'
 import {
   SAMPLE_MOTION,
@@ -69,26 +72,32 @@ export default function SyntheticDataDemo() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 py-10">
-      <div className="max-w-4xl mx-auto px-4">
-        <Link href="/showcase" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white mb-6">
-          <ArrowLeft className="w-4 h-4" /> Showcase
-        </Link>
-
-        <div className="mb-2 text-sm font-medium text-amber-400">Synthetic Data Generator</div>
-        <h1 className="text-3xl font-bold text-white mb-2">One debate, three training datasets</h1>
-        <p className="text-slate-400 mb-6 leading-relaxed">
+    <ShowcaseShell
+      title="One debate, three training datasets"
+      intro={
+        <>
           The debate from the flagship demo ({sampleProModel.name} vs {sampleConModel.name}) becomes labelled training
           data automatically. Switch tabs to see the same artifact reshaped for different recipes.
-        </p>
+        </>
+      }
+    >
+      <div className="flex flex-wrap items-center gap-[var(--space-md)]">
+        <BackToHub />
+        <SampleDataLabel />
+      </div>
 
-        <div className="flex flex-wrap gap-2 mb-4">
+      <section className="space-y-[var(--space-md)]">
+        <div className="flex flex-wrap gap-[var(--space-sm)]">
           {(Object.keys(tabs) as (keyof typeof tabs)[]).map((k) => (
             <button
               key={k}
+              type="button"
               onClick={() => setTab(k)}
-              className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                tab === k ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              aria-pressed={tab === k}
+              className={`rounded-pill px-[var(--space-md)] py-[var(--space-sm)] text-caption font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
+                tab === k
+                  ? 'bg-accent-primary text-bg'
+                  : 'bg-surface-raised text-text-muted hover:text-text'
               }`}
             >
               {tabs[k].label}
@@ -96,32 +105,49 @@ export default function SyntheticDataDemo() {
           ))}
         </div>
 
-        <div className="rounded-xl border border-slate-700 bg-slate-900/70 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700 bg-slate-800/60">
-            <Database className="w-4 h-4 text-amber-400" />
-            <span className="text-sm text-slate-200 font-medium">{current.count} row{current.count === 1 ? '' : 's'} · {tab}.jsonl</span>
-            <button onClick={copy} className="ml-auto inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-white">
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+        <GlassPanel className="overflow-hidden rounded-card">
+          <div className="flex items-center gap-[var(--space-sm)] border-b border-border bg-surface-raised px-[var(--space-md)] py-[var(--space-sm)]">
+            <Database className="h-4 w-4 text-accent-4" aria-hidden="true" />
+            <span className="text-caption font-medium text-text">
+              {current.count} row{current.count === 1 ? '' : 's'} · {tab}.jsonl
+            </span>
+            <button
+              type="button"
+              onClick={copy}
+              className="ml-auto inline-flex items-center gap-[var(--space-xs)] rounded-pill px-[var(--space-sm)] py-[var(--space-xs)] text-caption text-text-muted transition-colors hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-accent-primary" aria-hidden="true" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
               {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
-          <p className="px-4 pt-3 text-xs text-slate-400 leading-relaxed">{current.note}</p>
-          <pre className="text-xs p-4 overflow-x-auto text-slate-300 max-h-[460px]">
+          <p className="px-[var(--space-md)] pt-[var(--space-sm)] text-caption leading-relaxed text-text-muted">
+            {current.note}
+          </p>
+          <pre
+            className="max-h-96 overflow-x-auto overflow-y-auto p-[var(--space-md)] text-caption text-text-muted"
+            tabIndex={0}
+            role="region"
+            aria-label="Synthetic dataset JSON preview (scrollable)"
+          >
             <code>{json}</code>
           </pre>
-        </div>
+        </GlassPanel>
+      </section>
 
-        <EmbedNote
-          title="How this embeds in a training pipeline"
-          description="Run a benchmark, then export to JSONL. The dataset rows above are derived from the persisted artifact, so they carry full provenance (models, prompt versions, judge config, sources)."
-          snippet={`npm run benchmark:run -- --config configs/topic-set-v1.json
+      <EmbedNote
+        title="How this embeds in a training pipeline"
+        description="Run a benchmark, then export to JSONL. The dataset rows above are derived from the persisted artifact, so they carry full provenance (models, prompt versions, judge config, sources)."
+        snippet={`npm run benchmark:run -- --config configs/topic-set-v1.json
 npm run dataset:export -- --run <runId> --out exports/<runId>
 
 # exports/<runId>/
 #   preference_pairs.jsonl   process_traces.jsonl
 #   fact_checks.jsonl        manifest.json`}
-        />
-      </div>
-    </div>
+      />
+    </ShowcaseShell>
   )
 }

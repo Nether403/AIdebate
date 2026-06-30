@@ -33,7 +33,7 @@ export function ThemeToggle() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-white hover:bg-slate-800/50"
+        className="flex items-center justify-center gap-2 min-h-11 min-w-11 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-white hover:bg-slate-800/50"
         aria-label="Toggle theme"
       >
         <Icon className="w-4 h-4" />
