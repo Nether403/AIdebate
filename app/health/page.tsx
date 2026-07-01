@@ -1,21 +1,32 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ShowcaseShell } from '@/components/showcase/ShowcaseShell'
-import { GlassPanel } from '@/components/showcase/GlassPanel'
-import { SectionHeading } from '@/components/showcase/SectionHeading'
+import { Activity, Clock, Gauge, Server } from 'lucide-react'
+import { useTopBar } from '@/components/layout/TopBarContext'
+import { Card, CardHeader } from '@/components/ui/card'
+import { Stat } from '@/components/app/Stat'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 /**
  * System health page (`/health`) — the navigation contract's "System health"
  * destination (NAV_ITEMS in lib/design-system/manifest.ts). `/api/health`
  * returns JSON only, so this minimal page fetches it client-side and renders
- * the status, avoiding server-base-URL resolution issues entirely
- * (Requirements 5.2, 6.4).
+ * the status, avoiding server-base-URL resolution issues entirely.
  *
- * It renders through the shared ShowcaseShell (single <h1>, no own background,
- * Requirement 4.3) and styles exclusively via @theme tokens. Loading and error
- * states are handled so a fetch failure shows a clear message rather than a
- * blank page (Requirement 5.5 spirit).
+ * Presentation only (Requirement 7.4): the data fetching below is unchanged —
+ * the page renders through the shared AppShell (single <h1>, no own nav or
+ * background, Requirement 2.6), sets the top bar via `useTopBar`, and styles
+ * exclusively via theme tokens through the shared primitives (Stat, Card,
+ * Table). Severity is conveyed via a status dot + numeric value + text label,
+ * never color alone (Requirement 9.4). Loading and error states are handled so
+ * a fetch failure shows a clear message rather than a blank page.
  */
 
 // The health route's response shape (app/api/health/route.ts). Treated as
@@ -44,22 +55,40 @@ type Phase =
   | { kind: 'error'; message: string }
   | { kind: 'ready'; data: HealthResponse }
 
-/** Map the overall status to a token-based accent + label. */
-function statusPresentation(status: string | undefined): { label: string; className: string } {
+interface StatusStyle {
+  label: string
+  /** Status-dot background color (severity is never color alone — paired with label + value). */
+  dot: string
+  /** Text color for the label. */
+  text: string
+}
+
+/** Map the overall status to a token-aware dot + label + text color. */
+function overallStatus(status: string | undefined): StatusStyle {
   switch (status) {
     case 'healthy':
-      return { label: 'Operational', className: 'text-accent-primary border-accent-primary' }
+      return { label: 'Operational', dot: 'bg-cyan-400', text: 'text-cyan-300' }
     case 'degraded':
-      return { label: 'Degraded', className: 'text-accent-4 border-accent-4' }
+      return { label: 'Degraded', dot: 'bg-amber-500', text: 'text-amber-400' }
     case 'unhealthy':
-      return { label: 'Unhealthy', className: 'text-accent-3 border-accent-3' }
+      return { label: 'Unhealthy', dot: 'bg-rose-500', text: 'text-rose-400' }
     default:
-      return { label: status ?? 'Unknown', className: 'text-text-muted border-border' }
+      return { label: status ?? 'Unknown', dot: 'bg-muted-foreground', text: 'text-muted-foreground' }
   }
+}
+
+/** Map a per-service check to a dot + label + text color. */
+function serviceStatus(check: ServiceCheck): StatusStyle {
+  if (check.healthy === false) {
+    return { label: 'Down', dot: 'bg-rose-500', text: 'text-rose-400' }
+  }
+  return { label: 'OK', dot: 'bg-cyan-400', text: 'text-cyan-300' }
 }
 
 export default function HealthPage() {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
+
+  useTopBar({ breadcrumb: [{ label: 'System health' }] })
 
   useEffect(() => {
     let active = true
@@ -85,102 +114,134 @@ export default function HealthPage() {
   }, [])
 
   return (
-    <ShowcaseShell
-      title="System health"
-      intro="Live status of the workbench's core services, read from the /api/health endpoint."
-    >
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">System health</h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Live status of the workbench&apos;s core services, read from the <code>/api/health</code>{' '}
+          endpoint.
+        </p>
+      </div>
+
       {phase.kind === 'loading' && (
-        <GlassPanel className="rounded-card p-[var(--space-lg)] text-body text-text-muted">
-          Checking system health…
-        </GlassPanel>
+        <Card>
+          <p className="px-5 py-4 text-sm text-muted-foreground">Checking system health…</p>
+        </Card>
       )}
 
       {phase.kind === 'error' && (
-        <GlassPanel className="rounded-card border-accent-3 p-[var(--space-lg)] space-y-[var(--space-sm)]">
-          <SectionHeading level={2}>Health check unavailable</SectionHeading>
-          <p className="text-body text-text-muted">{phase.message}</p>
-        </GlassPanel>
+        <Card>
+          <CardHeader title="Health check unavailable" />
+          <p className="border-t border-border px-5 py-4 text-sm text-rose-400">{phase.message}</p>
+        </Card>
       )}
 
       {phase.kind === 'ready' && (
-        <div className="space-y-[var(--space-lg)]">
+        <div className="space-y-8">
           <OverallStatus data={phase.data} />
-          <ServiceList services={phase.data.services} />
+          <ServiceTable services={phase.data.services} />
         </div>
       )}
-    </ShowcaseShell>
+    </div>
   )
 }
 
 function OverallStatus({ data }: { data: HealthResponse }) {
-  const { label, className } = statusPresentation(data.status)
+  const status = overallStatus(data.status)
   return (
-    <GlassPanel className="rounded-card p-[var(--space-lg)] space-y-[var(--space-md)]">
-      <div className="flex flex-wrap items-center gap-[var(--space-md)]">
-        <span
-          className={`inline-flex items-center rounded-pill border px-[var(--space-md)] py-[var(--space-xs)] text-body font-semibold ${className}`}
-        >
-          {label}
-        </span>
-        {data.environment && (
-          <span className="text-caption text-text-muted">env: {data.environment}</span>
-        )}
-        {data.version && (
-          <span className="text-caption text-text-muted">version: {data.version}</span>
-        )}
-      </div>
-      <dl className="grid grid-cols-1 gap-[var(--space-sm)] sm:grid-cols-3">
-        <Stat label="Uptime" value={formatUptime(data.uptime_seconds)} />
-        <Stat
-          label="Response time"
-          value={typeof data.response_time_ms === 'number' ? `${data.response_time_ms} ms` : '—'}
-        />
-        <Stat label="Checked" value={formatTimestamp(data.timestamp)} />
-      </dl>
-    </GlassPanel>
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <Stat
+        icon={Activity}
+        iconClass={status.text}
+        label="Overall status"
+        value={status.label}
+        sub={[data.environment && `env: ${data.environment}`, data.version && `v${data.version}`]
+          .filter(Boolean)
+          .join(' · ') || '—'}
+        highlight={data.status === 'healthy'}
+      />
+      <Stat
+        icon={Clock}
+        iconClass="text-slate-400"
+        label="Uptime"
+        value={formatUptime(data.uptime_seconds)}
+        sub="since last start"
+      />
+      <Stat
+        icon={Gauge}
+        iconClass="text-slate-400"
+        label="Response time"
+        value={typeof data.response_time_ms === 'number' ? `${data.response_time_ms} ms` : '—'}
+        sub="health endpoint"
+      />
+      <Stat
+        icon={Server}
+        iconClass="text-slate-400"
+        label="Checked"
+        value={formatTimestamp(data.timestamp)}
+        sub="last probe"
+      />
+    </div>
   )
 }
 
-function ServiceList({ services }: { services?: Record<string, ServiceCheck> }) {
+function ServiceTable({ services }: { services?: Record<string, ServiceCheck> }) {
   const entries = services ? Object.entries(services) : []
   if (entries.length === 0) return null
 
   return (
-    <section className="space-y-[var(--space-md)]">
-      <SectionHeading level={2}>Services</SectionHeading>
-      <div className="grid grid-cols-1 gap-[var(--space-md)] sm:grid-cols-2">
-        {entries.map(([name, check]) => (
-          <GlassPanel key={name} className="rounded-card p-[var(--space-md)] space-y-[var(--space-xs)]">
-            <div className="flex items-center justify-between gap-[var(--space-sm)]">
-              <span className="text-body font-medium text-text">{formatServiceName(name)}</span>
-              <span
-                className={`text-caption font-semibold ${
-                  check.healthy === false ? 'text-accent-3' : 'text-accent-primary'
-                }`}
-              >
-                {check.healthy === false ? 'Down' : 'OK'}
-              </span>
-            </div>
-            {check.status && (
-              <p className="text-caption text-text-muted">status: {check.status}</p>
-            )}
-            {typeof check.latency_ms === 'number' && (
-              <p className="text-caption text-text-muted">latency: {check.latency_ms} ms</p>
-            )}
-            {check.error && <p className="text-caption text-accent-3">{check.error}</p>}
-          </GlassPanel>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-caption text-text-muted">{label}</dt>
-      <dd className="text-body text-text">{value}</dd>
-    </div>
+    <Card>
+      <CardHeader title="Services" hint={`${entries.length} checks`} />
+      {/* Table renders inside its own overflow-x-auto container, so under 1024px
+          only the table scrolls horizontally, not the page (Requirement 10.4). */}
+      <Table>
+        <TableHeader>
+          <TableRow className="border-y border-border text-[11px] uppercase tracking-wider text-muted-foreground hover:bg-transparent">
+            <TableHead className="px-5 py-2.5 text-left font-medium text-muted-foreground">
+              Service
+            </TableHead>
+            <TableHead className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+              Status
+            </TableHead>
+            <TableHead className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+              Latency
+            </TableHead>
+            <TableHead className="px-5 py-2.5 text-left font-medium text-muted-foreground">
+              Detail
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {entries.map(([name, check]) => {
+            const s = serviceStatus(check)
+            return (
+              <TableRow key={name} className="border-b border-border last:border-0">
+                <TableCell className="px-5 py-3 font-medium text-foreground">
+                  {formatServiceName(name)}
+                </TableCell>
+                <TableCell className="px-3 py-3">
+                  {/* Severity = dot + numeric value (latency col) + text label, never color alone (Req 9.4). */}
+                  <span className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden="true" />
+                    <span className={`font-medium ${s.text}`}>{s.label}</span>
+                  </span>
+                </TableCell>
+                <TableCell className="px-3 py-3 text-right font-mono tabular-nums text-muted-foreground">
+                  {typeof check.latency_ms === 'number' ? `${check.latency_ms} ms` : '—'}
+                </TableCell>
+                <TableCell className="px-5 py-3 text-sm text-muted-foreground">
+                  {check.error ? (
+                    <span className="text-rose-400">{check.error}</span>
+                  ) : (
+                    check.status ?? '—'
+                  )}
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </Card>
   )
 }
 

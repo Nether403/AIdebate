@@ -164,16 +164,18 @@ export const SHOWCASE_ENTRIES: ShowcaseEntry[] = [
   },
 ]
 
-/** Persistent brand anchors (Requirements 2.2, 2.3). Both are informational. */
+/**
+ * Persistent brand anchor (Requirement 2.2). Informational.
+ *
+ * The former `/infographic.jpg` entry was dropped in task 10.2: the AI-generated
+ * infographic was illegible, and the Landing_Page "How it works" section now
+ * presents the pipeline as legible numbered steps (its real text alternative),
+ * so no informational image without a text equivalent ships (Req 8.1, 8.2).
+ */
 export const BRAND_IMAGES: BrandImage[] = [
   {
     src: '/logo.jpg',
     alt: 'LLMargument workbench logo',
-    decorative: false,
-  },
-  {
-    src: '/infographic.jpg',
-    alt: 'Infographic of the debate benchmarking flow: two models argue, a fact-checker verifies claims against sources, and a bias-aware judge scores both persuasion and logical rigor.',
     decorative: false,
   },
 ]

@@ -1,58 +1,65 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * Feature: showcase-redesign — Task 10.4
- * Performance verification of the rendered Showcase_Experience.
+ * Feature: app-redesign — Task 12.3
+ * Performance + layout-stability verification of the redesigned App_Shell and
+ * its key research screens.
  *
  * These criteria depend on real browser timing / layout and are not amenable to
  * property testing, so they are covered here as Playwright integration tests
  * using the browser's built-in Performance APIs (Navigation/Paint Timing,
  * LargestContentfulPaint, and LayoutShift observers). No Lighthouse or
- * `playwright-lighthouse` dependency is introduced — the three budgets below
- * are measured directly, which keeps the dependency surface lean and the
- * signal honest.
+ * `playwright-lighthouse` dependency is introduced — the budgets below are
+ * measured directly, which keeps the dependency surface lean and the signal
+ * honest.
  *
- * Covered acceptance criteria:
- *   - 11.1  Landing_Page hero content renders within 2.5 s of navigation start
- *           (desktop viewport ≥ 1280px). Measured via Largest Contentful Paint
- *           (the hero headline/CTA cluster is the largest paint), falling back
- *           to First Contentful Paint when LCP is unavailable.
- *   - 11.2  Brand imagery (logo, infographic) is served in an optimized format
- *           scaled to within ~1.0–1.5× of its rendered display dimensions.
- *           Measured as naturalWidth / (renderedCSSWidth × devicePixelRatio),
- *           plus evidence the next/image optimizer pipeline served the asset.
- *   - 11.3  Cumulative Layout Shift stays at ~0 while Decorative_Animation runs
- *           (the global NeuralBackground canvas + page-local GlowBlobs/shimmer),
- *           i.e. decoration produces no positional displacement of content.
+ * Covered acceptance criteria (app-redesign requirements.md):
+ *   - 11.1  An in-scope route renders its above-the-fold content from server
+ *           HTML and renders the largest contentful element within 2.5 s,
+ *           without gating it behind an animated reveal. Measured via Largest
+ *           Contentful Paint, falling back to First Contentful Paint.
+ *   - 11.2  The Ambient_Glow renders as a fixed, out-of-flow, pointer-events-none
+ *           layer that contributes a cumulative layout shift of 0. The static
+ *           construction is proven in the unit suite
+ *           (components/layout/__tests__/ambient-glow-static.test.ts); here we
+ *           back it empirically — with the glow being the only global decoration,
+ *           the running CLS on a settled page must stay ~0.
+ *   - 11.3  An in-scope route produces a page-level CLS of at most 0.1 over the
+ *           load window.
+ *   - 11.4  The brand logo is served through an optimized image element with an
+ *           explicit, layout-reserving box near its display size.
  *
- * IMPORTANT CAVEAT (timing): the hero-render budget (11.1) is only truly
- * meaningful against a PRODUCTION build (`next build && next start`), which is
- * the default `webServer` in playwright.config.ts. When this suite is run
- * against a dev server (on-demand compilation, unminified bundles) the measured
- * hero-render time is a pessimistic upper bound — a dev pass is informative but
- * a dev FAIL on 11.1 alone should be confirmed against a production build before
- * being treated as a regression. The image-ratio (11.2) and CLS (11.3) checks
- * are valid on either server, since next/image optimization and layout behavior
- * are present in dev too.
+ * IMPORTANT CAVEAT (timing): the LCP budget (11.1) is only truly meaningful
+ * against a PRODUCTION build (`next build && next start`), the default
+ * `webServer` in playwright.config.ts. Against a dev server (on-demand
+ * compilation, unminified bundles) the measured render time is a pessimistic
+ * upper bound — a dev FAIL on 11.1 alone should be confirmed against a
+ * production build before being treated as a regression. The image-ratio (11.4)
+ * and CLS (11.2/11.3) checks are valid on either server.
  */
+
+// --- Key screens under test (landing + hub + canonical eval-report + health)
+const KEY_ROUTES = ['/', '/showcase', '/showcase/eval-report', '/health'] as const
 
 // --- Budgets / tolerances --------------------------------------------------
 
 const HERO_BUDGET_MS = 2500 // Req 11.1
-// Req 11.2 target band is 1.0–1.5×. next/image snaps to the next configured
-// breakpoint ≥ the displayed size, so the served width is always a little
-// larger than the display width; a small tolerance absorbs layout rounding and
-// breakpoint snapping without masking a genuinely oversized (blurry-upscale or
-// wasteful-download) asset.
+// Req 11.4: next/image snaps to the next configured breakpoint ≥ the displayed
+// size, so the served width is always a little larger than the display width;
+// a small tolerance absorbs layout rounding and breakpoint snapping without
+// masking a genuinely oversized (wasteful-download) asset.
 const RATIO_MIN = 1.0
 const RATIO_MAX = 1.5
 const RATIO_TOL = 0.2 // effective accepted band: [0.8, 1.7]
-// Req 11.3 wants CLS = 0. We allow a hair of floating-point/sub-pixel slop so a
-// rounding artifact does not flake the gate; anything above this would be a real
-// shift of adjacent content.
+// Req 11.2 wants the glow's CLS contribution = 0. With a static, fixed,
+// out-of-flow decoration there should be no running shift at all; we allow a
+// hair of floating-point/sub-pixel slop so a rounding artifact does not flake.
 const CLS_EPSILON = 0.01
-// Window over which we watch for animation-induced layout shift, long enough to
-// capture several frames of the looping NeuralBackground / glow float.
+// Req 11.3 caps the page-level CLS over the whole load window at 0.1.
+const PAGE_CLS_BUDGET = 0.1
+// Window over which we watch for shift after the page has settled — long enough
+// to catch any late decorative repaint (there must be none, since the glow is
+// static and carries no per-frame loop).
 const CLS_OBSERVE_MS = 3000
 
 /** Navigate and let streamed Suspense sections, fonts, and images settle so the
@@ -108,13 +115,14 @@ async function measureHeroRender(
   )
 }
 
-// Hero render budget is specified for a desktop viewport ≥ 1280px (Req 11.1).
-test.describe('hero render budget (Req 11.1)', () => {
+// Hero render budget is specified for a desktop viewport (Req 11.1). The
+// landing hero headline is the largest contentful paint.
+test.describe('above-the-fold render budget (Req 11.1)', () => {
   test.use({ viewport: { width: 1280, height: 720 } })
 
   test('/ — hero LCP/FCP renders within 2.5s of navigation start', async ({ page }) => {
-    // Warm the route once. Req 11.1 budgets the PAGE's hero-render time under a
-    // standard broadband profile — i.e. what a visitor hitting an already-warm
+    // Warm the route once. Req 11.1 budgets the PAGE's render time under a
+    // standard broadband profile — what a visitor hitting an already-warm
     // server experiences. A freshly `next start`-ed production server compiles
     // the route and optimizes next/image assets ON the first request, so an
     // unwarmed first navigation conflates that one-time server cold-start with
@@ -137,22 +145,28 @@ test.describe('hero render budget (Req 11.1)', () => {
         `navigation start. NOTE: meaningful on a production build; a dev-server measurement is a ` +
         `pessimistic upper bound.`,
     ).toBeLessThanOrEqual(HERO_BUDGET_MS)
+
+    // 11.1 also forbids gating the hero behind an animated reveal: the single
+    // <h1> must be present and visible in the server-rendered HTML, not hidden
+    // pending an animation.
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   })
 })
 
-// Brand imagery optimization + display-dimension ratio (Req 11.2). Logo lives in
-// the nav on every page; the infographic anchors the Landing_Page.
-test.describe('image optimization & display ratio (Req 11.2)', () => {
+// Brand logo optimization + display-dimension ratio (Req 11.4). The logo lives
+// in the persistent App_Sidebar (visible at desktop widths) and is served
+// through the next/image optimizer with an explicit, layout-reserving box.
+test.describe('logo optimization & layout-reserving box (Req 11.4)', () => {
   test.use({ viewport: { width: 1280, height: 720 } })
 
-  test('/ — brand images are optimized and scaled near display dimensions', async ({ page }) => {
+  test('/ — brand logo is optimized and scaled near its display dimensions', async ({ page }) => {
     await gotoSettled(page, '/')
-    // Ensure the infographic (which may stream in) is present before measuring.
-    await page.locator('img[src*="infographic"], img[src*="_next/image"]').first().waitFor()
+    // The sidebar logo is served through the optimizer; wait for it before measuring.
+    await page.locator('img[src*="logo"], img[src*="_next/image"]').first().waitFor()
 
     const images = await page.evaluate(() => {
       const dpr = window.devicePixelRatio || 1
-      const isBrand = (src: string) => /logo|infographic/i.test(decodeURIComponent(src))
+      const isBrand = (src: string) => /logo/i.test(decodeURIComponent(src))
       const results: {
         label: string
         natural: number
@@ -160,17 +174,18 @@ test.describe('image optimization & display ratio (Req 11.2)', () => {
         dpr: number
         ratio: number
         optimized: boolean
+        hasExplicitBox: boolean
       }[] = []
       for (const img of Array.from(document.querySelectorAll('img'))) {
         const src = img.currentSrc || img.src || ''
-        // Only the brand anchors are in scope for Req 11.2.
+        // Only the brand logo is in scope for Req 11.4.
         if (!isBrand(src)) continue
         const rect = img.getBoundingClientRect()
         if (rect.width === 0 || rect.height === 0) continue
         const natural = img.naturalWidth
         const displayedCss = rect.width
         results.push({
-          label: src.includes('logo') ? 'logo' : src.includes('infographic') ? 'infographic' : src.slice(0, 40),
+          label: 'logo',
           natural,
           displayedCss: Math.round(displayedCss),
           dpr,
@@ -178,26 +193,33 @@ test.describe('image optimization & display ratio (Req 11.2)', () => {
           ratio: natural / (displayedCss * dpr),
           // Evidence the next/image optimizer served this asset (vs the raw file).
           optimized: /\/_next\/image/.test(src),
+          // next/image with explicit width/height sets the intrinsic attributes
+          // that reserve the layout box before load (Req 11.4).
+          hasExplicitBox: img.hasAttribute('width') && img.hasAttribute('height'),
         })
       }
       return results
     })
 
-    expect(images.length, 'expected at least the logo + infographic brand images').toBeGreaterThanOrEqual(2)
+    expect(images.length, 'expected the brand logo image to be present').toBeGreaterThanOrEqual(1)
 
     for (const img of images) {
       expect(
         img.optimized,
-        `brand image "${img.label}" should be served through the next/image optimizer (currentSrc not /_next/image)`,
+        `brand logo should be served through the next/image optimizer (currentSrc not /_next/image)`,
+      ).toBe(true)
+      expect(
+        img.hasExplicitBox,
+        `brand logo must declare explicit width+height to reserve its layout box before load (Req 11.4)`,
       ).toBe(true)
       expect(
         img.ratio,
-        `brand image "${img.label}" served ${img.natural}px for a ${img.displayedCss}css×${img.dpr}dpr display ` +
+        `brand logo served ${img.natural}px for a ${img.displayedCss}css×${img.dpr}dpr display ` +
           `(ratio ${img.ratio.toFixed(2)}×) — expected within the ${RATIO_MIN}–${RATIO_MAX}× band (±${RATIO_TOL})`,
       ).toBeGreaterThanOrEqual(RATIO_MIN - RATIO_TOL)
       expect(
         img.ratio,
-        `brand image "${img.label}" served ${img.natural}px for a ${img.displayedCss}css×${img.dpr}dpr display ` +
+        `brand logo served ${img.natural}px for a ${img.displayedCss}css×${img.dpr}dpr display ` +
           `(ratio ${img.ratio.toFixed(2)}×) — expected within the ${RATIO_MIN}–${RATIO_MAX}× band (±${RATIO_TOL})`,
       ).toBeLessThanOrEqual(RATIO_MAX + RATIO_TOL)
     }
@@ -205,10 +227,42 @@ test.describe('image optimization & display ratio (Req 11.2)', () => {
 })
 
 /**
+ * Read the page-level cumulative layout shift accumulated over the whole load
+ * window (buffered entries from navigation start). Entries flagged
+ * `hadRecentInput` are excluded per the CLS definition. Backs Req 11.3.
+ */
+async function measurePageLoadCls(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        let cls = 0
+        let observer: PerformanceObserver | null = null
+        try {
+          observer = new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+              const shift = entry as PerformanceEntry & { value: number; hadRecentInput: boolean }
+              if (!shift.hadRecentInput) cls += shift.value
+            }
+          })
+          // buffered:true — include every shift since navigation start so this
+          // reflects the FULL load-window CLS (Req 11.3), not just a tail window.
+          observer.observe({ type: 'layout-shift', buffered: true })
+        } catch {
+          resolve(0)
+          return
+        }
+        setTimeout(() => {
+          observer?.disconnect()
+          resolve(cls)
+        }, 600)
+      }),
+  )
+}
+
+/**
  * Observe cumulative layout shift over a fixed window AFTER the page has
- * settled, so we isolate shift caused by running decoration (NeuralBackground
- * canvas, GlowBlob float, shimmer) from the unavoidable initial-load reflow.
- * Entries flagged `hadRecentInput` are excluded per the CLS definition.
+ * settled, isolating any shift caused by the running decoration (the static
+ * AmbientGlow) from the unavoidable initial-load reflow. Backs Req 11.2.
  */
 async function measureRunningCls(page: Page, windowMs: number): Promise<number> {
   return page.evaluate(
@@ -219,13 +273,12 @@ async function measureRunningCls(page: Page, windowMs: number): Promise<number> 
         try {
           observer = new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
-              // LayoutShift extends PerformanceEntry with value + hadRecentInput.
               const shift = entry as PerformanceEntry & { value: number; hadRecentInput: boolean }
               if (!shift.hadRecentInput) cls += shift.value
             }
           })
-          // buffered:false — only count shifts that occur during our window,
-          // i.e. while decoration is animating on an already-settled page.
+          // buffered:false — only count shifts during our window, i.e. while the
+          // (static) decoration is on an already-settled page.
           observer.observe({ type: 'layout-shift', buffered: false })
         } catch {
           resolve(0)
@@ -240,19 +293,31 @@ async function measureRunningCls(page: Page, windowMs: number): Promise<number> 
   )
 }
 
-test.describe('zero CLS during decorative animation (Req 11.3)', () => {
+test.describe('layout stability (Req 11.2, 11.3)', () => {
   test.use({ viewport: { width: 1280, height: 720 } })
 
-  // The landing hero runs two GlowBlobs + the global NeuralBackground; the hub
-  // runs the global NeuralBackground. Both must hold content steady at CLS ~0.
-  for (const route of ['/', '/showcase'] as const) {
-    test(`${route} — decoration causes no cumulative layout shift`, async ({ page }) => {
+  for (const route of KEY_ROUTES) {
+    test(`${route} — page-level CLS over the load window stays within budget (Req 11.3)`, async ({
+      page,
+    }) => {
+      await gotoSettled(page, route)
+      const cls = await measurePageLoadCls(page)
+      expect(
+        cls,
+        `page-level cumulative layout shift over the load window on ${route} was ${cls.toFixed(4)} ` +
+          `— must be ≤ ${PAGE_CLS_BUDGET}`,
+      ).toBeLessThanOrEqual(PAGE_CLS_BUDGET)
+    })
+
+    test(`${route} — static AmbientGlow causes no running layout shift (Req 11.2)`, async ({
+      page,
+    }) => {
       await gotoSettled(page, route)
       const cls = await measureRunningCls(page, CLS_OBSERVE_MS)
       expect(
         cls,
-        `cumulative layout shift during ${CLS_OBSERVE_MS}ms of decorative animation on ${route} ` +
-          `was ${cls.toFixed(4)} — decoration must produce 0 displacement of adjacent content`,
+        `running cumulative layout shift during ${CLS_OBSERVE_MS}ms on a settled ${route} was ` +
+          `${cls.toFixed(4)} — the static AmbientGlow must contribute 0 (Req 11.2)`,
       ).toBeLessThanOrEqual(CLS_EPSILON)
     })
   }

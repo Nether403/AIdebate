@@ -1,78 +1,65 @@
-import { Suspense } from 'react'
+'use client'
+
+import Link from 'next/link'
 import { ArrowRight, Gavel, ShieldCheck, GitBranch, FileCode } from 'lucide-react'
 
 import { CTA_TARGETS } from '@/lib/design-system/manifest'
-import { ACCENT_TOKENS } from '@/lib/design-system/tokens'
-import { CtaButton } from '@/components/showcase/CtaButton'
-import { GlassPanel } from '@/components/showcase/GlassPanel'
-import { GlowBlob } from '@/components/showcase/GlowBlob'
-import { Infographic } from '@/components/showcase/Infographic'
-import { JudgeSignalLabel } from '@/components/showcase/JudgeSignalLabel'
-import { SampleDataLabel } from '@/components/showcase/SampleDataLabel'
-import { SectionHeading } from '@/components/showcase/SectionHeading'
-import { SectionSkeleton } from '@/components/showcase/SectionSkeleton'
-import { ShimmerText } from '@/components/showcase/ShimmerText'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { useTopBar } from '@/components/layout/TopBarContext'
+import { cn } from '@/lib/utils'
 
 /**
- * Landing_Page (Requirement 3): a restrained, pitch-deck-grade hero plus four
- * fixed-order sections, composed entirely from Design_System primitives and
- * tokens. It paints NO background of its own — the global `--color-bg` body
- * token and the single budgeted NeuralBackground show through (Requirement 3.5,
- * shell deference). Spacing between sections comes only from the spacing scale.
+ * Landing_Page — re-skinned to the unified cool near-black + cyan→violet
+ * language (task 7.2). It renders only its own content: the global AppShell
+ * already mounts the single AmbientGlow, sidebar, and top bar, so this page
+ * paints NO background and renders no nav (Requirement 2.6). The top bar is set
+ * declaratively via `useTopBar` (hence `'use client'`).
  *
- * Honest workbench framing throughout (Requirement 3.6): this is an LLM debate
- * benchmarking and alignment-research workbench. No prediction-market, betting,
- * points, badge, or social-sharing language appears anywhere on the page.
+ * Honest workbench framing throughout (per AGENTS.md): this is an LLM debate
+ * benchmarking and alignment-research workbench — no prediction-market,
+ * betting, points, badge, social, or gamified language anywhere.
  *
- * Heading contract: exactly one <h1> (the hero headline); every section carries
- * exactly one <h2> via SectionHeading, with no skipped levels (Requirement 3.2,
- * 8.5). Card/stage titles are intentionally non-heading text so each section
- * keeps a single heading.
+ * Heading contract (Requirement 9.2): exactly one <h1> (the hero headline);
+ * sections use <h2> with no skipped levels.
  *
- * Server component: no client state lives here. Interactive/animated pieces
- * (Infographic, AnimateIn) are client components rendered from the server tree.
+ * CTA contract (Requirements 5.1, 5.3): both CTAs are sourced exclusively from
+ * the Navigation_Manifest `CTA_TARGETS`. The page presents exactly one primary
+ * and one secondary CTA, resolving to two distinct members of EXISTING_ROUTES
+ * (`/debate/new` and `/showcase`).
  *
- * Progressive placeholders (Requirement 11.4): the hero renders synchronously so
- * it is never gated (Requirement 11.1, above the fold), while the four content
- * sections are async server components each wrapped in its own `<Suspense>`
- * boundary. Under streaming SSR a token-styled `SectionSkeleton` is flushed for
- * any section still pending and is progressively replaced by the real content as
- * it resolves — so a slow section shows a skeleton rather than blank space, with
- * no layout shift. The infographic carries its own image-fetch text fallback
- * (Requirement 11.5) via the `Infographic` primitive's `onError` path.
+ * Accent discipline (Requirement 1.5): the cyan→violet gradient is used only on
+ * the emphasis headline span and the primary CTA (interactive/emphasis roles);
+ * body text carries no gradient fill (Requirement 1.6).
  */
 
-// CTA sourcing from the manifest keeps hrefs/labels on the real-route allow-list
-// (Requirement 5.1–5.3). Exactly one primary CTA exists on the page (the hero);
-// the closing section reinforces the same route with a secondary CTA so the
-// single-primary contract holds (Requirement 3.3, 3.4).
 const PRIMARY_CTA = CTA_TARGETS.find((c) => c.id === 'primary') ?? CTA_TARGETS[0]
 const SECONDARY_CTA = CTA_TARGETS.find((c) => c.id === 'secondary') ?? CTA_TARGETS[1]
+
+const focusRing =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
 
 const MEASURES = [
   {
     icon: Gavel,
     title: 'Double-pass judging',
     body: 'Every transcript is judged Pro-first and Con-first to cancel position bias, with a tiebreaker on disagreement and the consensus state recorded.',
-    accent: 'text-accent-primary',
   },
   {
     icon: ShieldCheck,
     title: 'Sourced factuality',
     body: 'Claims are checked against live search and kept with their sources, confidence, and verdicts — not reduced to an opaque factuality score.',
-    accent: 'text-accent-2',
   },
   {
     icon: GitBranch,
     title: 'Persuasion–rigor divergence',
     body: 'We surface where the judged winner diverges from the factuality-favored side, exposing models that win by being persuasively wrong.',
-    accent: 'text-accent-3',
   },
   {
     icon: FileCode,
     title: 'Structured export',
     body: 'Each run exports a complete artifact — turns, prompts, parameters, judge output, costs — as JSONL/CSV for downstream research.',
-    accent: 'text-accent-4',
   },
 ] as const
 
@@ -83,78 +70,64 @@ const PIPELINE_STAGES = [
 ] as const
 
 export default function Home() {
+  // Minimal breadcrumb for the landing surface; the shell renders the bar.
+  useTopBar({ breadcrumb: [{ label: 'Home' }] })
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-[var(--space-lg)] py-[var(--space-xl)] space-y-[var(--space-section)]">
+    <div className="mx-auto w-full max-w-6xl space-y-24 px-6 py-16 sm:px-8">
       <Hero />
-
-      {/* Each content section streams independently: its SectionSkeleton is
-          shown while pending and replaced progressively as the section resolves
-          (Requirement 11.4). The skeleton shape mirrors the section so the swap
-          causes no layout shift (Requirement 11.3). */}
-      <Suspense fallback={<SectionSkeleton media />}>
-        <HowItWorks />
-      </Suspense>
-
-      <Suspense fallback={<SectionSkeleton cards={MEASURES.length} />}>
-        <WhatItMeasures />
-      </Suspense>
-
-      <Suspense fallback={<SectionSkeleton />}>
-        <SampleArtifact />
-      </Suspense>
-
-      <Suspense fallback={<SectionSkeleton />}>
-        <CallToAction />
-      </Suspense>
+      <HowItWorks />
+      <WhatItMeasures />
+      <SampleArtifact />
     </div>
   )
 }
 
 /* =====================================================================
    HERO — single <h1>, value prop, one primary + one secondary CTA.
-   Kept compact (and synchronous) to render immediately above the fold at
-   1280×720 (Requirement 3.1, 11.1). Two decorative GlowBlobs + the global
-   NeuralBackground keep concurrent decoration within the budget of three
-   (Requirement 2.4); overflow is clipped so the blobs never create a
-   horizontal scrollbar (Req 7.1).
+   Renders synchronously above the fold (no animated reveal gating, Req 11.1).
    ===================================================================== */
 function Hero() {
   return (
-    <section className="relative overflow-hidden">
-      <GlowBlob
-        accent={ACCENT_TOKENS.primary}
-        className="h-[360px] w-[360px] -left-24 -top-24"
-      />
-      <GlowBlob
-        accent={ACCENT_TOKENS.supporting[0]}
-        className="h-[420px] w-[420px] -right-28 top-10"
-      />
+    <section className="text-center">
+      <div className="mx-auto max-w-3xl space-y-6 py-10">
+        <Badge tone="accent" className="mx-auto">
+          Alignment-research workbench
+        </Badge>
 
-      {/* The hero is the above-the-fold LCP cluster (Req 11.1): it must paint on
-          the server render, so it is intentionally NOT wrapped in AnimateIn —
-          Framer Motion SSRs its `initial` opacity:0 state, which would hold the
-          LCP <h1> invisible until hydration (~2.8s) and blow the 2.5s budget.
-          Entrance animation is reserved for below-the-fold content. */}
-      <div className="relative z-10 mx-auto max-w-3xl space-y-[var(--space-lg)] py-[var(--space-xl)] text-center">
-        <h1 className="text-hero font-bold tracking-tight text-text text-balance">
+        <h1 className="text-balance text-4xl font-bold tracking-tight text-card-foreground sm:text-5xl">
           The LLM debate{' '}
-          <ShimmerText>benchmarking workbench</ShimmerText>
+          <span
+            className="bg-clip-text text-transparent"
+            style={{ backgroundImage: 'var(--accent-gradient)' }}
+          >
+            benchmarking workbench
+          </span>
         </h1>
 
-        <p className="mx-auto max-w-2xl text-body text-text-muted">
-          An inspectable workbench for alignment research: run adversarial debates
-          between models, verify claims against sources, and judge persuasion against
-          logical rigor — then export the full artifact.
+        <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+          Run adversarial debates between models, verify claims against sources, and judge
+          persuasion against logical rigor — then export the full, inspectable artifact.
         </p>
 
-        <div className="flex flex-col items-center justify-center gap-[var(--space-md)] sm:flex-row">
-          <CtaButton variant="primary" href={PRIMARY_CTA.href}>
+        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+          {/* Primary CTA: gradient emphasis (interactive role only), 44px target. */}
+          <Link
+            href={PRIMARY_CTA.href}
+            className={cn(
+              'inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold text-[var(--primary-foreground)] shadow-sm transition-opacity hover:opacity-90',
+              focusRing
+            )}
+            style={{ backgroundImage: 'var(--accent-gradient)' }}
+          >
             {PRIMARY_CTA.label}
-            <ArrowRight className="h-5 w-5" aria-hidden="true" />
-          </CtaButton>
-          <CtaButton variant="secondary" href={SECONDARY_CTA.href}>
-            {SECONDARY_CTA.label}
-          </CtaButton>
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+
+          {/* Secondary CTA: outline, distinct route, no gradient. */}
+          <Button asChild variant="outline" size="lg" className="h-11 min-w-11">
+            <Link href={SECONDARY_CTA.href}>{SECONDARY_CTA.label}</Link>
+          </Button>
         </div>
       </div>
     </section>
@@ -162,66 +135,57 @@ function Hero() {
 }
 
 /* =====================================================================
-   SECTION 1 — How it works (infographic anchor, Requirement 2.3). The
-   Infographic primitive renders an optimized image with an onError text
-   fallback in place of a broken image (Requirement 11.5).
+   SECTION 1 — How it works (orchestrated pipeline)
    ===================================================================== */
-async function HowItWorks() {
+function HowItWorks() {
   return (
-    <section className="space-y-[var(--space-xl)]">
-      <div className="mx-auto max-w-2xl space-y-[var(--space-sm)] text-center">
-        <SectionHeading level={2}>How it works</SectionHeading>
-        <p className="text-body text-text-muted">
-          Data, validation, and judging flow through one orchestrated debate graph.
+    <section className="space-y-8">
+      <div className="mx-auto max-w-2xl space-y-2 text-center">
+        <h2 className="text-2xl font-bold tracking-tight text-card-foreground">How it works</h2>
+        <p className="text-muted-foreground">
+          Configuration, validation, and judging flow through one orchestrated debate graph.
         </p>
       </div>
 
-      <div className="grid items-center gap-[var(--space-xl)] lg:grid-cols-12">
-        <div className="lg:col-span-7">
-          <GlassPanel className="rounded-card p-[var(--space-md)]">
-            <Infographic priority />
-          </GlassPanel>
-        </div>
-
-        <ol className="space-y-[var(--space-md)] lg:col-span-5">
+      <Card className="mx-auto max-w-3xl p-6">
+        <ol className="space-y-5">
           {PIPELINE_STAGES.map((stage, i) => (
-            <li key={i} className="flex gap-[var(--space-md)]">
+            <li key={i} className="flex gap-4">
               <span
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill border border-accent-primary text-caption font-bold text-accent-primary"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/40 text-sm font-bold text-primary"
                 aria-hidden="true"
               >
                 {i + 1}
               </span>
-              <p className="text-body text-text-muted">{stage}</p>
+              <p className="text-muted-foreground">{stage}</p>
             </li>
           ))}
         </ol>
-      </div>
+      </Card>
     </section>
   )
 }
 
 /* =====================================================================
-   SECTION 2 — What it measures (capability cards, workbench framing)
+   SECTION 2 — What it measures (capability cards)
    ===================================================================== */
-async function WhatItMeasures() {
+function WhatItMeasures() {
   return (
-    <section className="space-y-[var(--space-xl)]">
-      <div className="mx-auto max-w-2xl space-y-[var(--space-sm)] text-center">
-        <SectionHeading level={2}>What it measures</SectionHeading>
-        <p className="text-body text-text-muted">
-          The workbench isolates the signals that separate persuasive models from
-          rigorous ones.
+    <section className="space-y-8">
+      <div className="mx-auto max-w-2xl space-y-2 text-center">
+        <h2 className="text-2xl font-bold tracking-tight text-card-foreground">What it measures</h2>
+        <p className="text-muted-foreground">
+          The workbench isolates the signals that separate persuasive models from rigorous ones.
         </p>
       </div>
 
-      <div className="grid gap-[var(--space-lg)] md:grid-cols-2 lg:grid-cols-4">
-        {MEASURES.map(({ icon: Icon, title, body, accent }) => (
-          <GlassPanel key={title} className="rounded-card p-[var(--space-lg)]">
-            <Icon className={`mb-[var(--space-md)] h-7 w-7 ${accent}`} aria-hidden="true" />
-            <p className="mb-[var(--space-xs)] text-body font-semibold text-text">{title}</p>
-            <p className="text-caption text-text-muted">{body}</p>
-          </GlassPanel>
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+        {MEASURES.map(({ icon: Icon, title, body }) => (
+          <Card key={title} className="p-6">
+            <Icon className="mb-4 h-7 w-7 text-primary" aria-hidden="true" />
+            <p className="mb-1.5 font-semibold text-card-foreground">{title}</p>
+            <p className="text-sm text-muted-foreground">{body}</p>
+          </Card>
         ))}
       </div>
     </section>
@@ -230,78 +194,49 @@ async function WhatItMeasures() {
 
 /* =====================================================================
    SECTION 3 — Sample artifact (judge-output preview).
-   The preview is illustrative sample data AND judge output, so both
-   honesty labels sit co-located within the section (Requirement 5.4,
-   6.1): SampleDataLabel marks the data as demo, JudgeSignalLabel marks
-   the verdict as a model-based signal, not ground truth.
+   Illustrative sample data AND judge output, so both honesty labels are
+   co-located and statically visible (no interaction required).
    ===================================================================== */
-async function SampleArtifact() {
+function SampleArtifact() {
   return (
-    <section className="space-y-[var(--space-xl)]">
-      <div className="mx-auto max-w-2xl space-y-[var(--space-sm)] text-center">
-        <SectionHeading level={2}>Sample artifact</SectionHeading>
-        <p className="text-body text-text-muted">
+    <section className="space-y-8">
+      <div className="mx-auto max-w-2xl space-y-2 text-center">
+        <h2 className="text-2xl font-bold tracking-tight text-card-foreground">Sample artifact</h2>
+        <p className="text-muted-foreground">
           A compact preview of the judge output captured with every completed run.
         </p>
       </div>
 
-      <GlassPanel className="mx-auto max-w-3xl rounded-card p-[var(--space-lg)]">
-        <div className="mb-[var(--space-lg)] flex flex-wrap items-center gap-[var(--space-sm)]">
-          <SampleDataLabel />
-          <JudgeSignalLabel />
+      <Card className="mx-auto max-w-3xl p-6">
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <Badge tone="neutral">Sample / demo data</Badge>
+          <Badge tone="accent">Model-based signal · not ground truth</Badge>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-[var(--space-sm)]">
-          <p className="font-mono text-caption text-text-muted">run: adhoc_preview_smoke_test</p>
-          <p className="text-caption font-semibold uppercase tracking-widest text-accent-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-sm text-muted-foreground">run: adhoc_preview_smoke_test</p>
+          <span className="text-xs font-semibold uppercase tracking-widest text-primary">
             Consensus
-          </p>
+          </span>
         </div>
 
-        <div className="mt-[var(--space-lg)] grid gap-[var(--space-md)] sm:grid-cols-2">
-          <div className="rounded-card border border-border bg-surface-raised p-[var(--space-md)]">
-            <p className="text-caption text-text-muted">Pro-first pass</p>
-            <p className="text-body font-semibold text-text">Con win · 6.2 – 5.8</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-border bg-foreground/[0.02] p-4">
+            <p className="text-sm text-muted-foreground">Pro-first pass</p>
+            <p className="font-semibold text-card-foreground">Con win · 6.2 – 5.8</p>
           </div>
-          <div className="rounded-card border border-border bg-surface-raised p-[var(--space-md)]">
-            <p className="text-caption text-text-muted">Con-first pass</p>
-            <p className="text-body font-semibold text-text">Con win · 6.0 – 5.9</p>
+          <div className="rounded-lg border border-border bg-foreground/[0.02] p-4">
+            <p className="text-sm text-muted-foreground">Con-first pass</p>
+            <p className="font-semibold text-card-foreground">Con win · 6.0 – 5.9</p>
           </div>
         </div>
 
-        <p className="mt-[var(--space-md)] text-caption text-text-muted">
-          <span className="font-semibold text-text">Verdict:</span> Con prevails. Pro argued
-          transparent validation well, but Con grounded concrete proliferation vectors that
+        <p className="mt-4 text-sm text-muted-foreground">
+          <span className="font-semibold text-card-foreground">Verdict:</span> Con prevails. Pro
+          argued transparent validation well, but Con grounded concrete proliferation vectors that
           Pro did not neutralize.
         </p>
-      </GlassPanel>
-    </section>
-  )
-}
-
-/* =====================================================================
-   SECTION 4 — Call to action (primary-route reinforcement).
-   Uses a SECONDARY CtaButton to the primary route so the page keeps
-   exactly one primary CTA in the hero (Requirement 3.3).
-   ===================================================================== */
-async function CallToAction() {
-  return (
-    <section className="space-y-[var(--space-xl)]">
-      <GlassPanel className="mx-auto max-w-3xl rounded-card p-[var(--space-xl)] text-center">
-        <SectionHeading level={2} className="mb-[var(--space-md)]">
-          Run your first benchmark
-        </SectionHeading>
-        <p className="mx-auto mb-[var(--space-lg)] max-w-2xl text-body text-text-muted">
-          Configure a motion, pick two models, and produce a complete, inspectable debate
-          artifact in a few minutes.
-        </p>
-        <div className="flex justify-center">
-          <CtaButton variant="secondary" href={PRIMARY_CTA.href}>
-            {PRIMARY_CTA.label}
-            <ArrowRight className="h-5 w-5" aria-hidden="true" />
-          </CtaButton>
-        </div>
-      </GlassPanel>
+      </Card>
     </section>
   )
 }

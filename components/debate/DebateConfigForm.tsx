@@ -1,12 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Shuffle, Cpu, HelpCircle, AlertCircle, RefreshCw } from 'lucide-react'
+import { Shuffle, Cpu, RefreshCw } from 'lucide-react'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import type { Model, Topic, Persona } from '@/types'
 
 interface DebateConfigFormProps {
   onSubmit: (config: DebateConfig) => void
   isLoading?: boolean
+  /** Optional id so an external primary action (the top bar) can submit the form. */
+  formId?: string
 }
 
 export interface DebateConfig {
@@ -21,11 +27,19 @@ export interface DebateConfig {
   factCheckMode: 'off' | 'standard' | 'strict'
 }
 
-export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFormProps) {
+// Shared token-styled control + label classes. shadcn has no `select`/`label`
+// primitive in this project, so native controls are themed from tokens (kept
+// minimal, per the design's guidance) and inherit the shared cyan focus ring.
+const selectClass =
+  'h-10 w-full rounded-md border border-input bg-input/30 px-3 text-sm text-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50'
+const labelClass = 'block text-xs font-medium uppercase tracking-wider text-muted-foreground'
+const optionClass = 'bg-popover text-popover-foreground'
+
+export function DebateConfigForm({ onSubmit, isLoading = false, formId }: DebateConfigFormProps) {
   const [models, setModels] = useState<Model[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [personas, setPersonas] = useState<Persona[]>([])
-  
+
   const [config, setConfig] = useState<DebateConfig>({
     proModelId: '',
     conModelId: '',
@@ -76,7 +90,7 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!config.proModelId || !config.conModelId) {
       alert('Please select both Pro and Con models')
       return
@@ -108,224 +122,239 @@ export function DebateConfigForm({ onSubmit, isLoading = false }: DebateConfigFo
 
   if (loadingData) {
     return (
-      <div className="glass-panel rounded-2xl p-12 flex flex-col items-center justify-center space-y-4">
-        <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
-        <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Syncing Model Registries...</p>
-      </div>
+      <Card className="space-y-6 p-6 md:p-8">
+        <Skeleton className="h-5 w-44" />
+        <div className="grid gap-5 md:grid-cols-2">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+        <Skeleton className="h-16" />
+        <p className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden="true" />
+          Syncing model registries…
+        </p>
+      </Card>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 md:p-8 space-y-6 relative overflow-hidden">
-      {/* Decorative gradient corner */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-cyan-500/10 to-transparent blur-2xl pointer-events-none" />
-      
-      <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
-        <Cpu className="w-5 h-5 text-cyan-400" />
-        <h2 className="text-xl font-bold text-white tracking-tight">Run Configuration</h2>
-      </div>
-
-      {/* Model Selection Row */}
-      <div className="grid md:grid-cols-2 gap-5">
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-cyan-300 uppercase tracking-wider">
-            Pro Model (Affirmative)
-          </label>
-          <select
-            value={config.proModelId}
-            onChange={(e) => setConfig({ ...config, proModelId: e.target.value })}
-            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all duration-300"
-            required
-          >
-            <option value="" className="bg-slate-950">Select a model...</option>
-            {models.map((model) => (
-              <option key={model.id} value={model.id} className="bg-slate-950">
-                {model.name} ({model.provider})
-              </option>
-            ))}
-          </select>
+    <form
+      id={formId}
+      onSubmit={handleSubmit}
+      aria-busy={isLoading}
+      className="space-y-6 rounded-xl border border-border bg-card p-6 text-card-foreground backdrop-blur-sm md:p-8"
+    >
+      <div className="mb-2 flex items-center gap-3 border-b border-border pb-4">
+          <Cpu className="h-5 w-5 text-primary" aria-hidden="true" />
+          <h2 className="text-lg font-semibold tracking-tight text-card-foreground">
+            Run configuration
+          </h2>
         </div>
 
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-rose-300 uppercase tracking-wider">
-            Con Model (Negative)
-          </label>
-          <select
-            value={config.conModelId}
-            onChange={(e) => setConfig({ ...config, conModelId: e.target.value })}
-            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 transition-all duration-300"
-            required
-          >
-            <option value="" className="bg-slate-950">Select a model...</option>
-            {models.map((model) => (
-              <option key={model.id} value={model.id} className="bg-slate-950">
-                {model.name} ({model.provider})
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Persona Selection Row */}
-      <div className="grid md:grid-cols-2 gap-5">
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Pro Persona <span className="text-[10px] lowercase text-slate-500">(optional)</span>
-          </label>
-          <select
-            value={config.proPersonaId || ''}
-            onChange={(e) => setConfig({ ...config, proPersonaId: e.target.value || null })}
-            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-white/20 transition-all duration-300"
-          >
-            <option value="" className="bg-slate-950">Default Benchmarking Behavior</option>
-            {personas.map((persona) => (
-              <option key={persona.id} value={persona.id} className="bg-slate-950">
-                {persona.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Con Persona <span className="text-[10px] lowercase text-slate-500">(optional)</span>
-          </label>
-          <select
-            value={config.conPersonaId || ''}
-            onChange={(e) => setConfig({ ...config, conPersonaId: e.target.value || null })}
-            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-white/20 transition-all duration-300"
-          >
-            <option value="" className="bg-slate-950">Default Benchmarking Behavior</option>
-            {personas.map((persona) => (
-              <option key={persona.id} value={persona.id} className="bg-slate-950">
-                {persona.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Topic Selection */}
-      <div className="space-y-3 pt-2">
-        <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-          Topic / Motion Selection
-        </label>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setTopicMode('random')
-              setConfig({ ...config, topicSelection: 'random', topicId: undefined })
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
-              topicMode === 'random'
-                ? 'bg-cyan-500/10 border border-cyan-500/35 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.1)]'
-                : 'bg-slate-950/40 border border-white/5 text-slate-400 hover:text-white hover:bg-slate-900/40'
-            }`}
-          >
-            Random Selection
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTopicMode('manual')
-              setConfig({ ...config, topicSelection: 'manual' })
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
-              topicMode === 'manual'
-                ? 'bg-cyan-500/10 border border-cyan-500/35 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.1)]'
-                : 'bg-slate-950/40 border border-white/5 text-slate-400 hover:text-white hover:bg-slate-900/40'
-            }`}
-          >
-            Manual Selection
-          </button>
-        </div>
-
-        {topicMode === 'manual' && (
-          <div className="space-y-3 animate-fadeIn">
+        {/* Model selection */}
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="pro-model" className={labelClass}>
+              Pro model (affirmative)
+            </label>
             <select
-              value={config.topicId || ''}
-              onChange={(e) => setConfig({ ...config, topicId: e.target.value || undefined })}
-              className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all duration-300"
-              required={topicMode === 'manual'}
+              id="pro-model"
+              value={config.proModelId}
+              onChange={(e) => setConfig({ ...config, proModelId: e.target.value })}
+              className={selectClass}
+              disabled={isLoading}
+              required
             >
-              <option value="" className="bg-slate-950">Select a curated topic motion...</option>
-              {topics.map((topic) => (
-                <option key={topic.id} value={topic.id} className="bg-slate-950">
-                  {topic.motion} [{topic.category} - {topic.difficulty}]
+              <option value="" className={optionClass}>
+                Select a model…
+              </option>
+              {models.map((model) => (
+                <option key={model.id} value={model.id} className={optionClass}>
+                  {model.name} ({model.provider})
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={handleRandomTopic}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-slate-900 border border-white/5 text-slate-300 rounded-lg hover:border-cyan-500/20 hover:text-white transition-all"
-            >
-              <Shuffle className="w-3.5 h-3.5" />
-              <span>Draw Random Curated Topic</span>
-            </button>
           </div>
-        )}
 
-        {topicMode === 'random' && (
-          <p className="text-xs text-slate-500 italic bg-slate-950/20 px-3 py-2 rounded-lg border border-white/5 inline-block">
-            ℹ️ A random topic will be selected automatically from the active pool at graph initiation.
-          </p>
-        )}
-      </div>
-
-      {/* Debate Settings */}
-      <div className="grid md:grid-cols-2 gap-5 pt-2">
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-            Total Rounds
-          </label>
-          <select
-            value={config.totalRounds}
-            onChange={(e) => setConfig({ ...config, totalRounds: parseInt(e.target.value) })}
-            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-white/20 transition-all duration-300"
-          >
-            <option value={1} className="bg-slate-950">1 Round (Smoke Test)</option>
-            <option value={2} className="bg-slate-950">2 Rounds</option>
-            <option value={3} className="bg-slate-950">3 Rounds (Standard)</option>
-            <option value={4} className="bg-slate-950">4 Rounds</option>
-            <option value={5} className="bg-slate-950">5 Rounds (Deep Benchmark)</option>
-          </select>
+          <div className="space-y-2">
+            <label htmlFor="con-model" className={labelClass}>
+              Con model (negative)
+            </label>
+            <select
+              id="con-model"
+              value={config.conModelId}
+              onChange={(e) => setConfig({ ...config, conModelId: e.target.value })}
+              className={selectClass}
+              disabled={isLoading}
+              required
+            >
+              <option value="" className={optionClass}>
+                Select a model…
+              </option>
+              {models.map((model) => (
+                <option key={model.id} value={model.id} className={optionClass}>
+                  {model.name} ({model.provider})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-            Fact-Checking Gate Mode
-          </label>
-          <select
-            value={config.factCheckMode}
-            onChange={(e) => setConfig({ ...config, factCheckMode: e.target.value as any })}
-            className="w-full px-4 py-3 bg-slate-950/60 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-white/20 transition-all duration-300"
-          >
-            <option value="off" className="bg-slate-950">Off (Lightweight / Dry Runs)</option>
-            <option value="standard" className="bg-slate-950">Standard (Claim source-checking)</option>
-            <option value="strict" className="bg-slate-950">Strict (Rejects false claim drafts)</option>
-          </select>
-        </div>
-      </div>
+        {/* Persona selection */}
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="pro-persona" className={labelClass}>
+              Pro persona <span className="lowercase text-muted-foreground/70">(optional)</span>
+            </label>
+            <select
+              id="pro-persona"
+              value={config.proPersonaId || ''}
+              onChange={(e) => setConfig({ ...config, proPersonaId: e.target.value || null })}
+              className={selectClass}
+              disabled={isLoading}
+            >
+              <option value="" className={optionClass}>
+                Default benchmarking behavior
+              </option>
+              {personas.map((persona) => (
+                <option key={persona.id} value={persona.id} className={optionClass}>
+                  {persona.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      {/* Submit Button */}
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl hover:scale-[1.01] hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mt-4 text-sm tracking-wider uppercase"
-      >
-        {isLoading ? (
-          <>
-            <RefreshCw className="w-4 h-4 animate-spin" />
-            <span>Spawning LangGraph Session...</span>
-          </>
-        ) : (
-          <span>Start Benchmarking Run</span>
-        )}
-      </button>
+          <div className="space-y-2">
+            <label htmlFor="con-persona" className={labelClass}>
+              Con persona <span className="lowercase text-muted-foreground/70">(optional)</span>
+            </label>
+            <select
+              id="con-persona"
+              value={config.conPersonaId || ''}
+              onChange={(e) => setConfig({ ...config, conPersonaId: e.target.value || null })}
+              className={selectClass}
+              disabled={isLoading}
+            >
+              <option value="" className={optionClass}>
+                Default benchmarking behavior
+              </option>
+              {personas.map((persona) => (
+                <option key={persona.id} value={persona.id} className={optionClass}>
+                  {persona.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Topic selection */}
+        <div className="space-y-3 pt-2">
+          <span className={labelClass}>Topic / motion selection</span>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={topicMode === 'random' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setTopicMode('random')
+                setConfig({ ...config, topicSelection: 'random', topicId: undefined })
+              }}
+            >
+              Random selection
+            </Button>
+            <Button
+              type="button"
+              variant={topicMode === 'manual' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setTopicMode('manual')
+                setConfig({ ...config, topicSelection: 'manual' })
+              }}
+            >
+              Manual selection
+            </Button>
+          </div>
+
+          {topicMode === 'manual' && (
+            <div className="space-y-3">
+              <select
+                aria-label="Curated topic motion"
+                value={config.topicId || ''}
+                onChange={(e) => setConfig({ ...config, topicId: e.target.value || undefined })}
+                className={selectClass}
+                disabled={isLoading}
+                required={topicMode === 'manual'}
+              >
+                <option value="" className={optionClass}>
+                  Select a curated topic motion…
+                </option>
+                {topics.map((topic) => (
+                  <option key={topic.id} value={topic.id} className={optionClass}>
+                    {topic.motion} [{topic.category} - {topic.difficulty}]
+                  </option>
+                ))}
+              </select>
+              <Button type="button" variant="outline" size="sm" onClick={handleRandomTopic}>
+                <Shuffle className="h-3.5 w-3.5" aria-hidden="true" />
+                Draw random curated topic
+              </Button>
+            </div>
+          )}
+
+          {topicMode === 'random' && (
+            <p className="inline-block rounded-lg border border-border bg-card px-3 py-2 text-xs italic text-muted-foreground">
+              A random topic will be selected automatically from the active pool at graph initiation.
+            </p>
+          )}
+        </div>
+
+        {/* Debate settings */}
+        <div className="grid gap-5 pt-2 md:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="total-rounds" className={labelClass}>
+              Total rounds
+            </label>
+            <select
+              id="total-rounds"
+              value={config.totalRounds}
+              onChange={(e) => setConfig({ ...config, totalRounds: parseInt(e.target.value) })}
+              className={selectClass}
+              disabled={isLoading}
+            >
+              <option value={1} className={optionClass}>1 round (smoke test)</option>
+              <option value={2} className={optionClass}>2 rounds</option>
+              <option value={3} className={optionClass}>3 rounds (standard)</option>
+              <option value={4} className={optionClass}>4 rounds</option>
+              <option value={5} className={optionClass}>5 rounds (deep benchmark)</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="factcheck-mode" className={labelClass}>
+              Fact-checking gate mode
+            </label>
+            <select
+              id="factcheck-mode"
+              value={config.factCheckMode}
+              onChange={(e) => setConfig({ ...config, factCheckMode: e.target.value as DebateConfig['factCheckMode'] })}
+              className={selectClass}
+              disabled={isLoading}
+            >
+              <option value="off" className={optionClass}>Off (lightweight / dry runs)</option>
+              <option value="standard" className={optionClass}>Standard (claim source-checking)</option>
+              <option value="strict" className={optionClass}>Strict (rejects false claim drafts)</option>
+            </select>
+          </div>
+        </div>
+
+        <p className={cn('flex items-center gap-2 border-t border-border pt-4 text-xs text-muted-foreground', !isLoading && 'sr-only')}>
+          <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden="true" />
+          Spawning LangGraph session…
+        </p>
     </form>
   )
 }
-
-

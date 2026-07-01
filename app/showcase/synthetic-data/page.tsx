@@ -1,12 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Database, Copy, Check } from 'lucide-react'
-import { ShowcaseShell } from '@/components/showcase/ShowcaseShell'
-import { BackToHub } from '@/components/showcase/BackToHub'
-import { SampleDataLabel } from '@/components/showcase/SampleDataLabel'
-import { GlassPanel } from '@/components/showcase/GlassPanel'
-import { EmbedNote } from '@/components/showcase/EmbedNote'
+import { useTopBar } from '@/components/layout/TopBarContext'
+import { Badge } from '@/components/ui/badge'
+import { CodeCard } from '@/components/app/CodeCard'
 import {
   SAMPLE_MOTION,
   sampleTurns,
@@ -14,6 +11,18 @@ import {
   sampleProModel,
   sampleConModel,
 } from '@/lib/showcase/sample-data'
+
+/**
+ * Synthetic-data showcase — one persisted debate artifact reshaped into three
+ * training datasets. Rendered inside the global AppShell (which owns the
+ * sidebar, top bar, and ambient background; this page declares none of its own,
+ * per Req 2.6). The top bar breadcrumb is set declaratively via `useTopBar`.
+ *
+ * Presentation only: the rows below are ILLUSTRATIVE SAMPLE DATA derived from
+ * the curated demo debate, labelled with a neutral "sample / demo data" badge
+ * (Req 7.1). JSONL and pipeline blocks render with the CodeCard treatment
+ * (mono, header, copy — Req 1.8). Exactly one <h1> (Req 9.2).
+ */
 
 // Derive training artifacts from the same debate the flagship demo shows.
 const consensus = sampleEvaluations.find((e) => e.order === 'consensus')!
@@ -61,43 +70,40 @@ const tabs = {
 
 export default function SyntheticDataDemo() {
   const [tab, setTab] = useState<keyof typeof tabs>('preference')
-  const [copied, setCopied] = useState(false)
   const current = tabs[tab]
   const json = JSON.stringify(current.data, null, 2)
 
-  const copy = () => {
-    navigator.clipboard?.writeText(json)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
+  useTopBar({
+    breadcrumb: [{ label: 'Workbench', href: '/' }, { label: 'Showcase', href: '/showcase' }, { label: 'Synthetic data' }],
+    contextPill: '1 debate · 3 datasets',
+  })
 
   return (
-    <ShowcaseShell
-      title="One debate, three training datasets"
-      intro={
-        <>
-          The debate from the flagship demo ({sampleProModel.name} vs {sampleConModel.name}) becomes labelled training
-          data automatically. Switch tabs to see the same artifact reshaped for different recipes.
-        </>
-      }
-    >
-      <div className="flex flex-wrap items-center gap-[var(--space-md)]">
-        <BackToHub />
-        <SampleDataLabel />
-      </div>
+    <div className="mx-auto w-full max-w-4xl space-y-8 px-4 py-10 sm:px-6">
+      <header className="space-y-3">
+        <Badge tone="neutral">Sample / demo data</Badge>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          One debate, three training datasets
+        </h1>
+        <p className="max-w-3xl text-muted-foreground">
+          The debate from the flagship demo ({sampleProModel.name} vs {sampleConModel.name}) becomes
+          labelled training data automatically. Switch tabs to see the same artifact reshaped for
+          different recipes.
+        </p>
+      </header>
 
-      <section className="space-y-[var(--space-md)]">
-        <div className="flex flex-wrap gap-[var(--space-sm)]">
+      <section className="space-y-4">
+        <div className="flex flex-wrap gap-2">
           {(Object.keys(tabs) as (keyof typeof tabs)[]).map((k) => (
             <button
               key={k}
               type="button"
               onClick={() => setTab(k)}
               aria-pressed={tab === k}
-              className={`rounded-pill px-[var(--space-md)] py-[var(--space-sm)] text-caption font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
+              className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                 tab === k
-                  ? 'bg-accent-primary text-bg'
-                  : 'bg-surface-raised text-text-muted hover:text-text'
+                  ? 'border-primary/30 bg-primary/10 text-primary'
+                  : 'border-border bg-foreground/[0.04] text-muted-foreground hover:text-foreground'
               }`}
             >
               {tabs[k].label}
@@ -105,49 +111,33 @@ export default function SyntheticDataDemo() {
           ))}
         </div>
 
-        <GlassPanel className="overflow-hidden rounded-card">
-          <div className="flex items-center gap-[var(--space-sm)] border-b border-border bg-surface-raised px-[var(--space-md)] py-[var(--space-sm)]">
-            <Database className="h-4 w-4 text-accent-4" aria-hidden="true" />
-            <span className="text-caption font-medium text-text">
-              {current.count} row{current.count === 1 ? '' : 's'} · {tab}.jsonl
-            </span>
-            <button
-              type="button"
-              onClick={copy}
-              className="ml-auto inline-flex items-center gap-[var(--space-xs)] rounded-pill px-[var(--space-sm)] py-[var(--space-xs)] text-caption text-text-muted transition-colors hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5 text-accent-primary" aria-hidden="true" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              {copied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-          <p className="px-[var(--space-md)] pt-[var(--space-sm)] text-caption leading-relaxed text-text-muted">
-            {current.note}
-          </p>
-          <pre
-            className="max-h-96 overflow-x-auto overflow-y-auto p-[var(--space-md)] text-caption text-text-muted"
-            tabIndex={0}
-            role="region"
-            aria-label="Synthetic dataset JSON preview (scrollable)"
-          >
-            <code>{json}</code>
-          </pre>
-        </GlassPanel>
+        <p className="text-sm leading-relaxed text-muted-foreground">{current.note}</p>
+
+        <CodeCard
+          label={`${current.count} row${current.count === 1 ? '' : 's'} · ${tab}.jsonl`}
+          code={json}
+        />
       </section>
 
-      <EmbedNote
-        title="How this embeds in a training pipeline"
-        description="Run a benchmark, then export to JSONL. The dataset rows above are derived from the persisted artifact, so they carry full provenance (models, prompt versions, judge config, sources)."
-        snippet={`npm run benchmark:run -- --config configs/topic-set-v1.json
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">
+          How this embeds in a training pipeline
+        </h2>
+        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          Run a benchmark, then export to JSONL. The dataset rows above are derived from the
+          persisted artifact, so they carry full provenance (models, prompt versions, judge config,
+          sources).
+        </p>
+        <CodeCard
+          label="export pipeline"
+          code={`npm run benchmark:run -- --config configs/topic-set-v1.json
 npm run dataset:export -- --run <runId> --out exports/<runId>
 
 # exports/<runId>/
 #   preference_pairs.jsonl   process_traces.jsonl
 #   fact_checks.jsonl        manifest.json`}
-      />
-    </ShowcaseShell>
+        />
+      </section>
+    </div>
   )
 }

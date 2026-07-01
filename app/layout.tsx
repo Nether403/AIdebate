@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import { Navigation } from '@/components/layout/Navigation'
+import { AppShell } from '@/components/layout/AppShell'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { ToastProvider } from '@/components/layout/Toast'
-import { NeuralBackground } from '@/components/layout/NeuralBackground'
 
-const inter = Inter({ subsets: ['latin'] })
+const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 export const metadata: Metadata = {
   title: 'LLMargument | AI Debate Workbench',
@@ -20,20 +20,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} relative antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
         <ThemeProvider>
           <ToastProvider>
-            <NeuralBackground />
-            <div className="relative z-10 flex flex-col min-h-screen">
-              <Navigation />
-              <main className="flex-1">
-                {children}
-              </main>
-            </div>
+            <AppShell>{children}</AppShell>
           </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
   )
 }
-

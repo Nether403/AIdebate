@@ -1,6 +1,6 @@
 'use client'
 
-import { Moon, Sun, Monitor } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 import { useState, useRef, useEffect } from 'react'
 
@@ -23,7 +23,6 @@ export function ThemeToggle() {
   const themes = [
     { value: 'light' as const, label: 'Light', icon: Sun },
     { value: 'dark' as const, label: 'Dark', icon: Moon },
-    { value: 'system' as const, label: 'System', icon: Monitor },
   ]
 
   const currentTheme = themes.find((t) => t.value === theme) || themes[1]

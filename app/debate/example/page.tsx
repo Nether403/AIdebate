@@ -2,7 +2,10 @@
 
 import { useState } from 'react'
 import { DebateTranscript, VotingInterface, ProbabilityGraph } from '@/components/debate'
-import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
+import { useTopBar } from '@/components/layout/TopBarContext'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { DebateTurn, Model, FactCheck } from '@/types'
 
 // Mock data for demonstration
@@ -101,72 +104,75 @@ const mockTurns: (DebateTurn & { factChecks?: FactCheck[] })[] = [
 export default function ExampleDebatePage() {
   const [showVoting, setShowVoting] = useState(false)
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        <Breadcrumbs items={[{ label: 'Debates', href: '/debate/new' }, { label: 'Example' }]} />
-        
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Example Debate</h1>
-          <p className="text-slate-400">
-            This is a demonstration of the debate viewer components with mock data
-          </p>
-        </div>
+  useTopBar({
+    breadcrumb: [{ label: 'Benchmark runs', href: '/debate/new' }, { label: 'Example' }],
+    contextPill: 'illustrative',
+  })
 
-        {/* Debate Header */}
-        <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700">
-          <h2 className="text-2xl font-bold text-white mb-4">
-            AI development should be accelerated rather than slowed down
-          </h2>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-slate-400 mb-1">Pro Position</p>
-              <p className="text-white font-medium">{mockProModel.name}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 mb-1">Con Position</p>
-              <p className="text-white font-medium">{mockConModel.name}</p>
-            </div>
+  return (
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+      {/* Page heading + honesty labels */}
+      <div className="mb-6">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Badge tone="neutral">Sample / demo data</Badge>
+          <Badge tone="accent">Model-based signal · not ground truth</Badge>
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Example debate</h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          A demonstration of the debate viewer components rendered with illustrative mock data.
+        </p>
+      </div>
+
+      {/* Debate header */}
+      <Card className="mb-6 p-6">
+        <h2 className="text-xl font-semibold text-card-foreground">
+          AI development should be accelerated rather than slowed down
+        </h2>
+        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Pro position</p>
+            <p className="font-medium text-foreground">{mockProModel.name}</p>
+          </div>
+          <div>
+            <p className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Con position</p>
+            <p className="font-medium text-foreground">{mockConModel.name}</p>
           </div>
         </div>
+      </Card>
 
-        {/* Probability Graph */}
-        <div className="mb-6">
-          <ProbabilityGraph
-            turns={mockTurns}
-            proModel={mockProModel}
-            conModel={mockConModel}
-            currentOdds={{ pro: 52, con: 48, tie: 0 }}
-          />
-        </div>
-
-        {/* Debate Transcript */}
-        <div className="mb-6">
-          <DebateTranscript
-            turns={mockTurns}
-            proModel={mockProModel}
-            conModel={mockConModel}
-            factCheckMode="standard"
-          />
-        </div>
-
-        {/* Voting Interface */}
-        {!showVoting ? (
-          <button
-            onClick={() => setShowVoting(true)}
-            className="w-full px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Show Voting Interface
-          </button>
-        ) : (
-          <VotingInterface
-            debateId="example"
-            proModel={mockProModel}
-            conModel={mockConModel}
-            onVoteSubmitted={() => alert('Vote submitted! (This is a demo)')}
-          />
-        )}
+      {/* Probability graph */}
+      <div className="mb-6">
+        <ProbabilityGraph
+          turns={mockTurns}
+          proModel={mockProModel}
+          conModel={mockConModel}
+          currentOdds={{ pro: 52, con: 48, tie: 0 }}
+        />
       </div>
+
+      {/* Debate transcript */}
+      <div className="mb-6">
+        <DebateTranscript
+          turns={mockTurns}
+          proModel={mockProModel}
+          conModel={mockConModel}
+          factCheckMode="standard"
+        />
+      </div>
+
+      {/* Voting interface */}
+      {!showVoting ? (
+        <Button onClick={() => setShowVoting(true)} className="min-h-11 w-full">
+          Show voting interface
+        </Button>
+      ) : (
+        <VotingInterface
+          debateId="example"
+          proModel={mockProModel}
+          conModel={mockConModel}
+          onVoteSubmitted={() => alert('Vote submitted! (This is a demo)')}
+        />
+      )}
     </div>
   )
 }

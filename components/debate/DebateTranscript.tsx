@@ -34,7 +34,7 @@ export function DebateTranscript({ turns, proModel, conModel, factCheckMode }: D
 
   if (turns.length === 0) {
     return (
-      <div className="glass-panel rounded-2xl p-12 text-center border border-white/5">
+      <div className="rounded-2xl border border-border bg-card p-12 text-center backdrop-blur-sm">
         <p className="text-slate-400 text-sm font-light">No arguments streamed yet. Graph session initiating...</p>
       </div>
     )
@@ -56,7 +56,7 @@ export function DebateTranscript({ turns, proModel, conModel, factCheckMode }: D
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -30 }}
               transition={{ duration: 0.4, delay: index * 0.05 }}
-              className={`glass-panel rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+              className={`rounded-2xl border bg-card backdrop-blur-sm transition-all duration-300 relative overflow-hidden ${
                 isPro 
                   ? 'border-cyan-500/20 bg-cyan-950/5 shadow-[0_4px_20px_rgba(6,182,212,0.02)]' 
                   : 'border-pink-500/20 bg-pink-950/5 shadow-[0_4px_20px_rgba(236,72,153,0.02)]'

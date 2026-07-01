@@ -3,10 +3,25 @@
 /**
  * Topic Submission Form
  * Allows users to submit debate topic suggestions
+ *
+ * Presentation only (Requirement 7.4): the state, validation, and POST to
+ * /api/topics/submit are unchanged from the original — only the markup/styling
+ * was ported to the unified design language (token-styled controls, shadcn
+ * Card/Button, cyan focus ring, status conveyed via Badge + text). The page
+ * (`app/topics/submit/page.tsx`) owns the single <h1>, so this form no longer
+ * renders its own heading.
  */
 
 import { useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import type { TopicCategory, TopicDifficulty } from '@/types';
+
+// Shared token-styled control + label classes (consistent with DebateConfigForm).
+const controlClass =
+  'w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm text-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50';
+const labelClass = 'block text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2';
+const optionClass = 'bg-popover text-popover-foreground';
 
 export function TopicSubmissionForm() {
   const [motion, setMotion] = useState('');
@@ -74,121 +89,111 @@ export function TopicSubmissionForm() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-4">Submit a Debate Topic</h2>
-      <p className="text-gray-600 mb-6">
-        Suggest a balanced debate motion for the community. Topics are automatically
-        validated for side-balance before approval.
-      </p>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="motion" className="block text-sm font-medium mb-2">
-            Debate Motion *
-          </label>
-          <textarea
-            id="motion"
-            value={motion}
-            onChange={(e) => setMotion(e.target.value)}
-            placeholder='e.g., "This house believes that artificial intelligence will do more good than harm"'
-            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={3}
-            required
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Frame as a clear proposition that can be argued from both sides
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-6">
+      <Card className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="category" className="block text-sm font-medium mb-2">
-              Category
+            <label htmlFor="motion" className={labelClass}>
+              Debate motion *
             </label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as TopicCategory)}
-              className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                </option>
-              ))}
-            </select>
+            <textarea
+              id="motion"
+              value={motion}
+              onChange={(e) => setMotion(e.target.value)}
+              placeholder='e.g., "This house believes that artificial intelligence will do more good than harm"'
+              className={controlClass}
+              rows={3}
+              required
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Frame as a clear proposition that can be argued from both sides
+            </p>
           </div>
 
-          <div>
-            <label htmlFor="difficulty" className="block text-sm font-medium mb-2">
-              Difficulty
-            </label>
-            <select
-              id="difficulty"
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value as TopicDifficulty)}
-              className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {difficulties.map((diff) => (
-                <option key={diff} value={diff}>
-                  {diff.charAt(0).toUpperCase() + diff.slice(1)}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="category" className={labelClass}>
+                Category
+              </label>
+              <select
+                id="category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as TopicCategory)}
+                className={controlClass}
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat} className={optionClass}>
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="difficulty" className={labelClass}>
+                Difficulty
+              </label>
+              <select
+                id="difficulty"
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value as TopicDifficulty)}
+                className={controlClass}
+              >
+                {difficulties.map((diff) => (
+                  <option key={diff} value={diff} className={optionClass}>
+                    {diff.charAt(0).toUpperCase() + diff.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 font-medium"
-        >
-          {submitting ? 'Validating & Submitting...' : 'Submit Topic'}
-        </button>
-      </form>
+          <Button type="submit" disabled={submitting} className="w-full" size="lg">
+            {submitting ? 'Validating & submitting…' : 'Submit topic'}
+          </Button>
+        </form>
 
-      {result && (
-        <div
-          className={`mt-6 p-4 rounded-md ${
-            result.success
-              ? 'bg-green-50 border border-green-200'
-              : 'bg-red-50 border border-red-200'
-          }`}
-        >
-          <p
-            className={`font-medium ${
-              result.success ? 'text-green-800' : 'text-red-800'
+        {result && (
+          <div
+            className={`mt-6 rounded-md border px-4 py-3 ${
+              result.success
+                ? 'border-cyan-500/30 bg-cyan-500/10'
+                : 'border-rose-500/30 bg-rose-500/10'
             }`}
           >
-            {result.message}
-          </p>
+            <p
+              className={`font-medium ${
+                result.success ? 'text-cyan-300' : 'text-rose-400'
+              }`}
+            >
+              {result.message}
+            </p>
 
-          {result.validation && (
-            <div className="mt-3 text-sm">
-              <p className="text-gray-700 mb-1">
-                <strong>Balance Assessment:</strong>
-              </p>
-              <p className="text-gray-600">
-                Pro Advantage: {(result.validation.proAdvantage * 100).toFixed(0)}%
-              </p>
-              <p className="text-gray-600">
-                Confidence: {(result.validation.confidence * 100).toFixed(0)}%
-              </p>
-              <p className="text-gray-700 mt-2">{result.validation.reasoning}</p>
-            </div>
-          )}
-        </div>
-      )}
+            {result.validation && (
+              <div className="mt-3 text-sm">
+                <p className="mb-1 font-medium text-foreground">Balance assessment</p>
+                <p className="text-muted-foreground">
+                  Pro advantage: {(result.validation.proAdvantage * 100).toFixed(0)}%
+                </p>
+                <p className="text-muted-foreground">
+                  Confidence: {(result.validation.confidence * 100).toFixed(0)}%
+                </p>
+                <p className="mt-2 text-muted-foreground">{result.validation.reasoning}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
 
-      <div className="mt-6 p-4 bg-blue-50 rounded-md">
-        <h3 className="font-medium text-blue-900 mb-2">Tips for Good Topics:</h3>
-        <ul className="text-sm text-blue-800 space-y-1">
+      <Card className="border-primary/20 bg-primary/[0.04] p-5">
+        <h2 className="mb-2 text-sm font-semibold text-foreground">Tips for good topics</h2>
+        <ul className="space-y-1 text-sm text-muted-foreground">
           <li>• Ensure both sides can construct valid arguments</li>
           <li>• Avoid topics with overwhelming factual consensus</li>
-          <li>• Frame clearly as a proposition (e.g., "This house believes...")</li>
+          <li>• Frame clearly as a proposition (e.g., &quot;This house believes…&quot;)</li>
           <li>• Make it specific enough to debate but broad enough for multiple angles</li>
         </ul>
-      </div>
+      </Card>
     </div>
   );
 }

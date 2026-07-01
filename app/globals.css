@@ -1,239 +1,99 @@
+/* app/globals.css — shadcn New York contract, themed cool near-black + cyan→violet */
 @import "tailwindcss";
 
-/* =============================================================================
-   Design_System — single source of truth (Requirement 1.1, 10.2, 10.4)
-   All seven token categories are declared once in this @theme block:
-   color · glow · typography · spacing · radius · elevation · motion.
-   Theme-dependent values (surface / text / accent / border) are overridden in
-   the scoped blocks below (:root = dark default, .light, .dark) so the class
-   the ThemeProvider sets always maps to a concrete rule.
-   ============================================================================ */
+/* Class-based dark variant: the ThemeProvider sets `.dark`/`.light` on <html>,
+   so map Tailwind's `dark:` utilities (used by the shadcn components) to that
+   class rather than `prefers-color-scheme`. */
+@custom-variant dark (&:is(.dark *));
 
-@theme {
-  /* --- color (dark defaults; theme-scoped overrides below) ------------------ */
-  --color-bg: #030712;
-  --color-surface: #111827;
-  --color-surface-raised: #1f2937;
-  --color-text: #f3f4f6;
-  --color-text-muted: #9ca3af;
-  --color-border: rgba(255, 255, 255, 0.10);
-
-  /* Accents: exactly one primary + at most three supporting (Requirement 1.5) */
-  --color-accent-primary: #00f2fe; /* cyan — signature primary */
-  --color-accent-2: #a78bfa;       /* violet  (supporting 1) */
-  --color-accent-3: #f472b6;       /* pink    (supporting 2) */
-  --color-accent-4: #fbbf24;       /* amber   (supporting 3) */
-
-  /* --- glow (derived from the accent token, adapts per theme) --------------- */
-  --glow-accent: 0 0 8px color-mix(in srgb, var(--color-accent-primary) 50%, transparent);
-  --glow-soft: 0 0 24px color-mix(in srgb, var(--color-accent-primary) 30%, transparent);
-
-  /* --- typography scale ----------------------------------------------------- */
-  --text-hero: clamp(2.5rem, 5vw, 4rem);
-  --text-h2: clamp(1.75rem, 3vw, 2.5rem);
-  --text-h3: 1.5rem;
-  --text-body: 1rem;
-  --text-caption: 0.8125rem;
-
-  /* --- spacing scale -------------------------------------------------------- */
-  --space-xs: 0.5rem;
-  --space-sm: 0.75rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2.5rem;
-  --space-section: 6rem;
-
-  /* --- corner radius -------------------------------------------------------- */
-  --radius-card: 1rem;
-  --radius-pill: 9999px;
-
-  /* --- elevation ------------------------------------------------------------ */
-  --shadow-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.30);
-  --shadow-elevation-2: 0 8px 24px rgba(0, 0, 0, 0.37);
-  --shadow-elevation-3: 0 16px 48px rgba(0, 0, 0, 0.50);
-
-  /* --- motion --------------------------------------------------------------- */
-  --duration-entrance: 600ms;
-  --duration-opacity: 200ms;
-  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius: 0.625rem;
 }
 
-/* -----------------------------------------------------------------------------
-   Theme scopes — only theme-dependent surface / text / accent / border tokens
-   are overridden here. Static tokens (type, spacing, radius, elevation, motion,
-   glow) are inherited from the @theme block above.
-   :root is the dark default (ThemeProvider applies no class before hydration and
-   defaults to dark). .dark restates the dark values so the explicit class maps.
-   --------------------------------------------------------------------------- */
+:root, .dark {
+  /* Cool near-black base (NOT neutral #0a0a0a) */
+  --background: #070b11;          /* page */
+  --foreground: #e2e8f0;          /* slate-200 body */
+  --card: rgba(255,255,255,0.02); /* translucent panel over the glow */
+  --card-foreground: #f1f5f9;     /* slate-100 */
+  --popover: #0b1119;
+  --popover-foreground: #f1f5f9;
 
-:root,
-.dark {
-  --color-bg: #030712;
-  --color-surface: #111827;
-  --color-surface-raised: #1f2937;
-  --color-text: #f3f4f6;
-  --color-text-muted: #9ca3af;
-  --color-border: rgba(255, 255, 255, 0.10);
+  /* Signature accent: cyan primary + cyan→violet gradient for emphasis */
+  --primary: #22d3ee;             /* cyan-400 */
+  --primary-foreground: #04121a;
+  --accent-gradient: linear-gradient(to right, #06b6d4, #8b5cf6); /* cyan-500 → violet-500 */
 
-  --color-accent-primary: #00f2fe;
-  --color-accent-2: #a78bfa;
-  --color-accent-3: #f472b6;
-  --color-accent-4: #fbbf24;
+  --muted: #0f1722;
+  --muted-foreground: #94a3b8;    /* slate-400 */
+  --border: rgba(255,255,255,0.07);
+  --input: rgba(255,255,255,0.10);
+  --ring: #22d3ee;                /* cyan focus ring */
 
-  /* legacy aliases consumed by body + any inline var() usage */
-  --background: var(--color-bg);
-  --foreground: var(--color-text);
+  /* Sidebar surface a touch deeper than the page */
+  --sidebar: rgba(8,12,18,0.70);
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-border: rgba(255,255,255,0.07);
+  --sidebar-ring: #22d3ee;
+
+  /* Status / severity (separate from brand accent) */
+  --status-low: #22d3ee;          /* cyan (paired w/ violet in gradients) */
+  --status-elevated: #f59e0b;     /* amber-500 */
+  --status-high: #f43f5e;         /* rose-500 */
+
+  /* Charts — themed, never default Recharts fills */
+  --chart-1: #22d3ee; --chart-2: #8b5cf6; --chart-3: #f59e0b;
+  --chart-4: #f43f5e; --chart-5: #38bdf8;
+
+  /* Ambient glow tints (very low opacity, applied via utilities) */
+  --glow-cyan: rgba(34,211,238,0.10);
+  --glow-violet: rgba(139,92,246,0.10);
+  --glow-fuchsia: rgba(217,70,239,0.05);
 }
 
 .light {
-  --color-bg: #f8fafc;
-  --color-surface: #ffffff;
-  --color-surface-raised: #f1f5f9;
-  --color-text: #0f172a;
-  --color-text-muted: #475569;
-  --color-border: rgba(15, 23, 42, 0.12);
-
-  /* Darker accent variants meet >=3:1 (large/UI) and >=4.5:1 (text) on light
-     surfaces (Requirement 10.1). */
-  --color-accent-primary: #0e7490; /* cyan-700  */
-  --color-accent-2: #6d28d9;       /* violet-700 */
-  --color-accent-3: #be185d;       /* pink-700   */
-  --color-accent-4: #b45309;       /* amber-700  */
-
-  --background: var(--color-bg);
-  --foreground: var(--color-text);
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0e7490;            /* cyan-700 — ≥4.5:1 on light */
+  --primary-foreground: #ffffff;
+  --accent-gradient: linear-gradient(to right, #0e7490, #6d28d9);
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;   /* slate-600 */
+  --border: rgba(15,23,42,0.12);
+  --input: rgba(15,23,42,0.18);
+  --ring: #0e7490;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #334155;
+  --sidebar-border: rgba(15,23,42,0.10);
+  --sidebar-ring: #0e7490;
+  --status-low: #0e7490; --status-elevated: #b45309; --status-high: #be123c;
+  --glow-cyan: rgba(14,116,144,0.06);
+  --glow-violet: rgba(109,40,217,0.06);
+  --glow-fuchsia: rgba(192,38,211,0.03);
 }
 
-body {
-  color: var(--color-text);
-  background: var(--color-bg);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
-  overflow-x: hidden;
-}
+body { background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
 
-/* =============================================================================
-   Reusable primitives — each defined EXACTLY ONCE, sourced from the @theme
-   tokens above (Requirement 1.7). Glow/neon styling is confined to accent /
-   emphasis roles (glow-blob, shimmer-text); body-text classes carry no glow
-   or text-shadow (Requirement 2.5).
-   ============================================================================ */
-
-/* glass-panel — elevated translucent surface (no glow; elevation only) */
-.glass-panel {
-  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-elevation-2);
-  transition: border-color var(--duration-opacity) var(--ease-standard),
-    box-shadow var(--duration-opacity) var(--ease-standard);
-}
-
-.glass-panel:hover {
-  border-color: color-mix(in srgb, var(--color-text) 18%, transparent);
-  box-shadow: var(--shadow-elevation-3);
-}
-
-/* glow-blob — decorative ambient accent glow (emphasis role only) */
-.glow-blob {
-  position: absolute;
-  border-radius: var(--radius-pill);
-  filter: blur(100px);
-  opacity: 0.15;
-  z-index: 0;
-  pointer-events: none;
-  animation: float 20s infinite alternate;
-}
-
-@keyframes float {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(50px, -50px) scale(1.2);
-  }
-  100% {
-    transform: translate(-50px, 50px) scale(0.8);
-  }
-}
-
-/* shimmer-text — accent gradient heading treatment (emphasis role only) */
-.shimmer-text {
-  background: linear-gradient(
-    to right,
-    var(--color-accent-primary) 0%,
-    var(--color-accent-2) 30%,
-    var(--color-accent-3) 70%,
-    var(--color-accent-primary) 100%
-  );
-  background-size: 200% auto;
-  color: transparent;
-  background-clip: text;
-  -webkit-background-clip: text;
-  animation: shine 6s linear infinite;
-}
-
-@keyframes shine {
-  to {
-    background-position: 200% center;
-  }
-}
-
-/* skeleton — token-styled placeholder for pending sections (Requirement 11.4).
-   Sourced from surface tokens; the gentle pulse is a decorative opacity-only
-   animation, disabled under reduced motion so the placeholder stays static and
-   readable. Reserves its own box so the streamed-in content causes no layout
-   shift (Requirement 11.3). */
-.skeleton {
-  background: color-mix(in srgb, var(--color-surface-raised) 80%, transparent);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  animation: skeleton-pulse 1.4s var(--ease-standard) infinite;
-}
-
-@keyframes skeleton-pulse {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-
-/* Reduced-motion: disable decorative float/shimmer motion while keeping the
-   visual anchors (logo, infographic, static glow + gradient text) visible
-   (Requirement 2.7, 9.1). */
 @media (prefers-reduced-motion: reduce) {
-  .glow-blob {
-    animation: none;
-    transform: none;
-  }
-
-  .shimmer-text {
-    animation: none;
-  }
-
-  .skeleton {
-    animation: none;
-  }
-}
-
-/* Smooth transitions for theme changes */
-* {
-  transition-property: background-color, border-color, color, box-shadow;
-  transition-duration: 0.2s;
-  transition-timing-function: ease-in-out;
-}
-
-/* Prevent transition on page load */
-.no-transition * {
-  transition: none !important;
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }

@@ -2,13 +2,21 @@
 
 import { useState } from 'react'
 import { Scale, ThumbsUp, ThumbsDown, ExternalLink } from 'lucide-react'
-import { ShowcaseShell } from '@/components/showcase/ShowcaseShell'
-import { BackToHub } from '@/components/showcase/BackToHub'
-import { GlassPanel } from '@/components/showcase/GlassPanel'
-import { SectionHeading } from '@/components/showcase/SectionHeading'
-import { SampleDataLabel } from '@/components/showcase/SampleDataLabel'
-import { JudgeSignalLabel } from '@/components/showcase/JudgeSignalLabel'
-import { EmbedNote } from '@/components/showcase/EmbedNote'
+import { useTopBar } from '@/components/layout/TopBarContext'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { CodeCard } from '@/components/app/CodeCard'
+import { cn } from '@/lib/utils'
+
+/**
+ * Steelman showcase — a host-app frame around a sourced both-sides analysis
+ * panel. Hand the debate engine a contested question; it argues the motion both
+ * ways, fact-checks each side, and returns a sourced, adjudicated summary.
+ *
+ * Presentation only: every case below is ILLUSTRATIVE SAMPLE DATA. The
+ * nav/background/top bar are owned by AppShell; this page renders its content
+ * and sets the top bar declaratively via `useTopBar`. Exactly one <h1>.
+ */
 
 interface Steelman {
   question: string
@@ -68,112 +76,134 @@ const cases: Record<string, Steelman> = {
   },
 }
 
-// Lean is part of the adjudicated judge output, so its emphasis color stays
-// within the accent palette: pro -> primary, con -> accent-3, balanced -> accent-2.
-const leanAccent = (lean: Steelman['lean']) =>
-  lean === 'pro' ? 'text-accent-primary' : lean === 'con' ? 'text-accent-3' : 'text-accent-2'
+// Lean is part of the adjudicated judge output. Like severity, it is conveyed
+// via a status dot + text label, never color alone (Req 9.4):
+//   pro -> cyan, con -> rose, balanced -> violet.
+const leanStyle = (lean: Steelman['lean']) =>
+  lean === 'pro'
+    ? { text: 'text-cyan-300', dot: 'bg-cyan-400' }
+    : lean === 'con'
+      ? { text: 'text-rose-400', dot: 'bg-rose-500' }
+      : { text: 'text-violet-400', dot: 'bg-violet-500' }
 
 export default function SteelmanDemo() {
+  useTopBar({
+    breadcrumb: [{ label: 'Showcase', href: '/showcase' }, { label: 'Steelman' }],
+    contextPill: 'Decision support',
+  })
+
   const [key, setKey] = useState<keyof typeof cases>('nuclear')
   const c = cases[key]
+  const lean = leanStyle(c.lean)
 
   return (
-    <ShowcaseShell
-      title="Steelman: a sourced both-sides panel"
-      intro="Hand the debate engine a contested question and it argues the motion both ways, fact-checks each side, and returns a sourced, adjudicated summary — the strongest honest case for and against, plus where the evidence actually leans."
-    >
-      <div className="flex flex-wrap items-center gap-[var(--space-md)]">
-        <BackToHub />
-        <SampleDataLabel />
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+      {/* Page heading + honesty labels */}
+      <div className="mb-6">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Badge tone="neutral">Sample / demo data</Badge>
+          <Badge tone="accent">Model-based signal · not ground truth</Badge>
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Steelman: a sourced both-sides panel
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Hand the debate engine a contested question and it argues the motion both ways,
+          fact-checks each side, and returns a sourced, adjudicated summary — the strongest honest
+          case for and against, plus where the evidence actually leans.
+        </p>
       </div>
 
-      {/* Question selector */}
-      <section className="space-y-[var(--space-sm)]">
-        <label htmlFor="steelman-question" className="text-caption font-medium text-text-muted">
-          Contested question
-        </label>
-        <select
-          id="steelman-question"
-          value={key}
-          onChange={(e) => setKey(e.target.value as keyof typeof cases)}
-          className="w-full max-w-2xl rounded-card border border-border bg-surface px-[var(--space-md)] py-[var(--space-sm)] text-body text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        >
-          {Object.entries(cases).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v.question}
-            </option>
-          ))}
-        </select>
-      </section>
-
-      {/* Both-sided arguments */}
-      <section className="grid grid-cols-1 gap-[var(--space-md)] sm:grid-cols-2">
-        <GlassPanel className="rounded-card p-[var(--space-lg)]">
-          <div className="mb-[var(--space-sm)] flex items-center gap-[var(--space-sm)]">
-            <ThumbsUp className="h-4 w-4 text-accent-primary" aria-hidden="true" />
-            <SectionHeading level={2} className="!text-h3 text-accent-primary">
-              For
-            </SectionHeading>
-          </div>
-          <p className="mb-[var(--space-sm)] text-body font-semibold text-text">{c.pro.headline}</p>
-          <ul className="space-y-[var(--space-sm)]">
-            {c.pro.points.map((p) => (
-              <li key={p} className="text-caption leading-relaxed text-text-muted">
-                • {p}
-              </li>
-            ))}
-          </ul>
-        </GlassPanel>
-
-        <GlassPanel className="rounded-card p-[var(--space-lg)]">
-          <div className="mb-[var(--space-sm)] flex items-center gap-[var(--space-sm)]">
-            <ThumbsDown className="h-4 w-4 text-accent-3" aria-hidden="true" />
-            <SectionHeading level={2} className="!text-h3 text-accent-3">
-              Against
-            </SectionHeading>
-          </div>
-          <p className="mb-[var(--space-sm)] text-body font-semibold text-text">{c.con.headline}</p>
-          <ul className="space-y-[var(--space-sm)]">
-            {c.con.points.map((p) => (
-              <li key={p} className="text-caption leading-relaxed text-text-muted">
-                • {p}
-              </li>
-            ))}
-          </ul>
-        </GlassPanel>
-      </section>
-
-      {/* Adjudicated verdict — judge output, so the honesty label sits adjacent (Req 6.1) */}
-      <GlassPanel className="rounded-card p-[var(--space-lg)]">
-        <div className="mb-[var(--space-md)] flex flex-wrap items-center gap-[var(--space-sm)]">
-          <Scale className="h-5 w-5 text-accent-2" aria-hidden="true" />
-          <SectionHeading level={2} className="!text-h3">
-            Verdict
-          </SectionHeading>
-          <span className={`text-caption font-semibold uppercase tracking-wide ${leanAccent(c.lean)}`}>
-            leans {c.lean}
-          </span>
-          <JudgeSignalLabel className="ml-auto" />
+      {/* Host-app frame: a fake decision-support tool embedding the panel. */}
+      <Card>
+        <div className="flex items-center gap-2 border-b border-border bg-foreground/[0.03] px-5 py-3">
+          <Scale className="h-4 w-4 text-primary" aria-hidden="true" />
+          <span className="text-sm font-medium text-foreground">DecideKit · Research assistant</span>
+          <Badge tone="neutral" className="ml-auto">
+            embedded panel
+          </Badge>
         </div>
-        <p className="text-body leading-relaxed text-text-muted">{c.verdict}</p>
-      </GlassPanel>
 
-      {/* Sources */}
-      <section className="flex flex-wrap items-center gap-[var(--space-sm)]">
-        <span className="text-caption text-text-muted">Sources:</span>
-        {c.sources.map((s) => (
-          <span
-            key={s}
-            className="inline-flex items-center gap-[var(--space-xs)] rounded-pill border border-border bg-surface-raised px-[var(--space-sm)] py-[var(--space-xs)] text-caption text-text-muted"
-          >
-            <ExternalLink className="h-3 w-3 text-accent-2" aria-hidden="true" /> {s}
-          </span>
-        ))}
-      </section>
+        <div className="space-y-6 p-5">
+          {/* Question selector */}
+          <div className="space-y-1.5">
+            <label htmlFor="steelman-question" className="text-xs font-medium text-muted-foreground">
+              Contested question
+            </label>
+            <select
+              id="steelman-question"
+              value={key}
+              onChange={(e) => setKey(e.target.value as keyof typeof cases)}
+              className="w-full max-w-2xl rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              {Object.entries(cases).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v.question}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      <EmbedNote
-        description="Headless first: post one contested question and read back the structured both-sides verdict. The same JSON drives this panel, your own decision-support UI, or a dataset row."
-        snippet={`POST /api/steelman
+          {/* Two-sided analysis panel */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <SidePanel
+              icon={ThumbsUp}
+              iconClass="text-cyan-300"
+              titleClass="text-cyan-300"
+              title="For"
+              headline={c.pro.headline}
+              points={c.pro.points}
+            />
+            <SidePanel
+              icon={ThumbsDown}
+              iconClass="text-rose-400"
+              titleClass="text-rose-400"
+              title="Against"
+              headline={c.con.headline}
+              points={c.con.points}
+            />
+          </div>
+
+          {/* Adjudicated verdict — judge output, labelled at the page top. */}
+          <div className="rounded-lg border border-border bg-card p-5">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Scale className="h-5 w-5 text-violet-400" aria-hidden="true" />
+              <h2 className="text-base font-semibold text-foreground">Verdict</h2>
+              <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide">
+                <span className={cn('h-2 w-2 rounded-full', lean.dot)} aria-hidden="true" />
+                <span className={lean.text}>leans {c.lean}</span>
+              </span>
+            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">{c.verdict}</p>
+          </div>
+
+          {/* Sources */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Sources:</span>
+            {c.sources.map((s) => (
+              <span
+                key={s}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-foreground/[0.04] px-3 py-1 text-xs text-muted-foreground"
+              >
+                <ExternalLink className="h-3 w-3 text-violet-400" aria-hidden="true" /> {s}
+              </span>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {/* Headless API */}
+      <section className="mt-6">
+        <div className="mb-2">
+          <p className="text-sm font-medium text-foreground">Headless first</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Post one contested question and read back the structured both-sides verdict. The same
+            JSON drives this panel, your own decision-support UI, or a dataset row.
+          </p>
+        </div>
+        <CodeCard
+          label="steelman API"
+          code={`POST /api/steelman
 { "question": "Should we expand nuclear energy to fight climate change?" }
 
 -> {
@@ -182,7 +212,42 @@ export default function SteelmanDemo() {
   "verdict": "...", "lean": "balanced",
   "sources": [ { "url": "..." } ]
 }`}
-      />
-    </ShowcaseShell>
+        />
+      </section>
+    </div>
+  )
+}
+
+/** One side of the two-sided analysis panel (For / Against). */
+function SidePanel({
+  icon: Icon,
+  iconClass,
+  titleClass,
+  title,
+  headline,
+  points,
+}: {
+  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+  iconClass: string
+  titleClass: string
+  title: string
+  headline: string
+  points: string[]
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-5">
+      <div className="mb-2 flex items-center gap-2">
+        <Icon className={cn('h-4 w-4', iconClass)} aria-hidden={true} />
+        <h2 className={cn('text-base font-semibold', titleClass)}>{title}</h2>
+      </div>
+      <p className="mb-2 text-sm font-semibold text-foreground">{headline}</p>
+      <ul className="space-y-2">
+        {points.map((p) => (
+          <li key={p} className="text-xs leading-relaxed text-muted-foreground">
+            • {p}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

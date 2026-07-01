@@ -3,7 +3,16 @@
 import { useEffect } from 'react'
 import { AlertTriangle, RefreshCw, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
+/**
+ * Route-level error boundary for the debate viewer.
+ *
+ * Renders inside the AppShell (no self nav/background). Reserves a centered
+ * layout box matching the viewer's content width so the error surface does not
+ * shift the shell (Req 11.5). Exactly one <h1>.
+ */
 export default function DebateError({
   error,
   reset,
@@ -16,40 +25,32 @@ export default function DebateError({
   }, [error])
 
   return (
-    <div className="min-h-screen bg-slate-900 dark:bg-slate-950 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center space-y-6 max-w-md">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20">
-              <AlertTriangle className="w-8 h-8 text-red-500" />
-            </div>
-            
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-white">Failed to Load Debate</h1>
-              <p className="text-slate-400">
-                We couldn't load this debate. It may not exist or there was an error retrieving it.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                onClick={reset}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Try Again
-              </button>
-              <Link
-                href="/debate/new"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-700 text-white font-medium rounded-lg hover:bg-slate-600 transition-colors border border-slate-600"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Start New Debate
-              </Link>
-            </div>
-          </div>
+    <div className="mx-auto flex w-full max-w-6xl items-center justify-center px-4 py-8 sm:px-6">
+      <Card className="w-full max-w-md p-8 text-center">
+        <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--status-high)]/25 bg-[var(--status-high)]/10">
+          <AlertTriangle className="h-7 w-7 text-[var(--status-high)]" aria-hidden="true" />
         </div>
-      </div>
+
+        <div className="mt-5 space-y-2">
+          <h1 className="text-xl font-semibold text-card-foreground">Failed to load debate</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            We couldn&apos;t load this debate. It may not exist or there was an error retrieving it.
+          </p>
+        </div>
+
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+          <Button onClick={reset} className="min-h-11">
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Try again
+          </Button>
+          <Button asChild variant="outline" className="min-h-11">
+            <Link href="/debate/new">
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Start new debate
+            </Link>
+          </Button>
+        </div>
+      </Card>
     </div>
   )
 }

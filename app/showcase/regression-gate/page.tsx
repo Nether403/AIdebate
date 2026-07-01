@@ -2,12 +2,23 @@
 
 import { useState } from 'react'
 import { GitPullRequest, CheckCircle2, XCircle, Loader2, Play } from 'lucide-react'
-import { ShowcaseShell } from '@/components/showcase/ShowcaseShell'
-import { BackToHub } from '@/components/showcase/BackToHub'
-import { GlassPanel } from '@/components/showcase/GlassPanel'
-import { SampleDataLabel } from '@/components/showcase/SampleDataLabel'
-import { JudgeSignalLabel } from '@/components/showcase/JudgeSignalLabel'
-import { EmbedNote } from '@/components/showcase/EmbedNote'
+import { useTopBar } from '@/components/layout/TopBarContext'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { CodeCard } from '@/components/app/CodeCard'
+import { severity } from '@/components/app/CssBar'
+import { cn } from '@/lib/utils'
+
+/**
+ * Regression-gate showcase — a CI check that runs a debate benchmark on a model
+ * change and blocks the merge when the new model wins by being *persuasive*
+ * rather than *correct*.
+ *
+ * Presentation only: every metric below is ILLUSTRATIVE SAMPLE DATA. The
+ * nav/background/top bar are owned by AppShell; this page renders its content
+ * and sets the top bar declaratively via `useTopBar`. Exactly one <h1>.
+ */
 
 type StepState = 'idle' | 'running' | 'done'
 
@@ -23,6 +34,11 @@ const steps = [
 ]
 
 export default function RegressionGateDemo() {
+  useTopBar({
+    breadcrumb: [{ label: 'Showcase', href: '/showcase' }, { label: 'Regression gate' }],
+    contextPill: 'CI demo',
+  })
+
   const [state, setState] = useState<StepState>('idle')
   const [activeStep, setActiveStep] = useState(-1)
 
@@ -45,122 +61,200 @@ export default function RegressionGateDemo() {
   }
 
   const failed = state === 'done'
+  // The flagged charismatic-liar count drives the severity bucket (3 → high).
+  const liar = severity(3)
 
   return (
-    <ShowcaseShell
-      title="Catch persuasive-but-wrong regressions before they ship"
-      intro={
-        <>
-          A CI check that runs a debate benchmark whenever you change the model behind a product, then blocks the merge
-          if the new model wins more often by being <em>persuasive</em> rather than <em>correct</em>.
-        </>
-      }
-    >
-      <div className="flex flex-wrap items-center gap-[var(--space-md)]">
-        <BackToHub />
-        <SampleDataLabel />
+    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
+      {/* Page heading + honesty labels */}
+      <div className="mb-6">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Badge tone="neutral">Sample / demo data</Badge>
+          <Badge tone="accent">Model-based signal · not ground truth</Badge>
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Catch persuasive-but-wrong regressions before they ship
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          A CI check that runs a debate benchmark whenever you change the model behind a product,
+          then blocks the merge if the new model wins more often by being <em>persuasive</em> rather
+          than <em>correct</em>.
+        </p>
       </div>
 
       {/* Mock PR / CI panel */}
-      <GlassPanel className="overflow-hidden rounded-card">
-        <div className="flex items-center gap-[var(--space-sm)] border-b border-border bg-surface-raised px-[var(--space-md)] py-[var(--space-sm)]">
-          <GitPullRequest className="h-4 w-4 text-accent-primary" aria-hidden="true" />
-          <span className="text-caption font-medium text-text">PR #482 · Bump assistant model to gpt-5.2</span>
-          <span className="ml-auto text-caption text-text-muted">checks</span>
+      <Card>
+        <div className="flex items-center gap-2 border-b border-border bg-foreground/[0.03] px-5 py-3">
+          <GitPullRequest className="h-4 w-4 text-primary" aria-hidden="true" />
+          <span className="text-sm font-medium text-foreground">
+            PR #482 · Bump assistant model to gpt-5.2
+          </span>
+          <span className="ml-auto text-xs text-muted-foreground">checks</span>
         </div>
 
-        <div className="p-[var(--space-md)]">
-          <div className="mb-[var(--space-md)] flex items-center justify-between gap-[var(--space-md)]">
-            <div className="flex items-center gap-[var(--space-sm)]">
-              {state === 'idle' && <span className="h-2.5 w-2.5 rounded-pill bg-text-muted" aria-hidden="true" />}
-              {state === 'running' && <Loader2 className="h-4 w-4 animate-spin text-accent-4" aria-hidden="true" />}
-              {state === 'done' && <XCircle className="h-4 w-4 text-accent-3" aria-hidden="true" />}
-              <span className="text-caption font-medium text-text">debate-benchmark / alignment-gate</span>
+        <div className="p-5">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              {state === 'idle' && (
+                <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground" aria-hidden="true" />
+              )}
+              {state === 'running' && (
+                <Loader2 className="h-4 w-4 animate-spin text-amber-400" aria-hidden="true" />
+              )}
+              {state === 'done' && <XCircle className="h-4 w-4 text-rose-400" aria-hidden="true" />}
+              <span className="text-sm font-medium text-foreground">
+                debate-benchmark / alignment-gate
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {state === 'idle' ? 'queued' : state === 'running' ? 'running' : 'failed'}
+              </span>
             </div>
-            <button
-              onClick={run}
-              disabled={state === 'running'}
-              className="inline-flex min-h-11 items-center gap-[var(--space-xs)] rounded-pill bg-accent-primary px-[var(--space-md)] py-[var(--space-xs)] text-caption font-medium text-bg transition-colors hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-            >
+            <Button type="button" onClick={run} disabled={state === 'running'} className="min-h-11">
               {state === 'running' ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
                 <Play className="h-4 w-4" aria-hidden="true" />
               )}
               {state === 'idle' ? 'Run gate' : state === 'running' ? 'Running…' : 'Re-run'}
-            </button>
+            </Button>
           </div>
 
           {/* Steps log */}
-          <div className="min-h-40 space-y-1.5 rounded-card border border-border bg-surface px-[var(--space-md)] py-[var(--space-sm)] font-mono text-caption">
-            {state === 'idle' && <p className="text-text-muted">Waiting to run. Click “Run gate”.</p>}
+          <div className="min-h-40 space-y-1.5 rounded-lg border border-border bg-foreground/[0.02] px-4 py-3 font-mono text-xs">
+            {state === 'idle' && (
+              <p className="text-muted-foreground">Waiting to run. Click &ldquo;Run gate&rdquo;.</p>
+            )}
             {state !== 'idle' &&
               steps.map((s, idx) => {
                 const isDone = idx < activeStep
                 const isActive = idx === activeStep
                 return (
-                  <div key={s} className="flex items-start gap-[var(--space-xs)]">
+                  <div key={s} className="flex items-start gap-2">
                     {isDone ? (
-                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-primary" aria-hidden="true" />
+                      <CheckCircle2
+                        className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300"
+                        aria-hidden="true"
+                      />
                     ) : isActive ? (
-                      <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-accent-4" aria-hidden="true" />
+                      <Loader2
+                        className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-amber-400"
+                        aria-hidden="true"
+                      />
                     ) : (
-                      <span className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-pill border border-border" aria-hidden="true" />
+                      <span
+                        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border border-border"
+                        aria-hidden="true"
+                      />
                     )}
-                    <span className={isDone || isActive ? 'text-text' : 'text-text-muted'}>{s}</span>
+                    <span className={isDone || isActive ? 'text-foreground' : 'text-muted-foreground'}>
+                      {s}
+                    </span>
                   </div>
                 )
               })}
           </div>
 
-          {/* Result — derived from judge / fact-check signals, so label it (Req 6.1). */}
+          {/* Result — derived from judge / fact-check signals (labelled above). */}
           {failed && (
-            <div className="mt-[var(--space-md)] space-y-[var(--space-md)]">
-              <div className="flex flex-wrap items-center gap-[var(--space-sm)]">
-                <span className="text-caption font-medium text-text">Gate result</span>
-                <JudgeSignalLabel className="ml-auto" />
+            <div className="mt-5 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <GateMetric
+                  label="Win rate Δ"
+                  value="+14%"
+                  status="elevated"
+                  sub="gpt-5.2 vs gpt-5.1"
+                  dotClass="bg-amber-500"
+                  valueClass="text-amber-400"
+                />
+                <GateMetric
+                  label="Factuality Δ"
+                  value="−9%"
+                  status="regressed"
+                  sub="claims holding up"
+                  dotClass="bg-rose-500"
+                  valueClass="text-rose-400"
+                />
+                <GateMetric
+                  label="Charismatic-liar wins"
+                  value="3 / 12"
+                  status={liar.label}
+                  sub="persuasion ≠ truth"
+                  dotClass={liar.dot}
+                  valueClass={liar.text}
+                />
               </div>
-              <div className="grid gap-[var(--space-sm)] sm:grid-cols-3">
-                <Metric label="Win rate Δ" value="+14%" sub="gpt-5.2 vs gpt-5.1" tone="warn" />
-                <Metric label="Factuality Δ" value="−9%" sub="claims holding up" tone="bad" />
-                <Metric label="Charismatic-liar wins" value="3 / 12" sub="persuasion ≠ truth" tone="bad" />
-              </div>
-              <div className="rounded-card border border-accent-3/40 bg-accent-3/10 p-[var(--space-md)]">
-                <div className="mb-1 flex items-center gap-[var(--space-xs)]">
-                  <XCircle className="h-4 w-4 text-accent-3" aria-hidden="true" />
-                  <span className="text-caption font-semibold text-accent-3">Gate failed — merge blocked</span>
+
+              <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-4">
+                <div className="mb-1 flex items-center gap-1.5">
+                  <XCircle className="h-4 w-4 text-rose-400" aria-hidden="true" />
+                  <span className="text-sm font-semibold text-rose-400">
+                    Gate failed — merge blocked
+                  </span>
                 </div>
-                <p className="text-body leading-relaxed text-text-muted">
-                  gpt-5.2 wins more debates overall, but its advantage comes disproportionately from arguments that the
-                  fact-checker flagged as weaker. The persuasion-vs-truth divergence crossed the configured threshold,
-                  so this looks like a persuasiveness gain rather than a reasoning gain. Review before shipping.
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  gpt-5.2 wins more debates overall, but its advantage comes disproportionately from
+                  arguments that the fact-checker flagged as weaker. The persuasion-vs-truth
+                  divergence crossed the configured threshold, so this looks like a persuasiveness
+                  gain rather than a reasoning gain. Review before shipping.
                 </p>
               </div>
             </div>
           )}
         </div>
-      </GlassPanel>
+      </Card>
 
-      <EmbedNote
-        title="How this embeds in CI"
-        description="Run the benchmark as a step in your pipeline and fail the job on a divergence regression. Models are validated first so a deprecated slug can't silently pass the gate."
-        snippet={`# .github/workflows/model-upgrade.yml
+      {/* How this embeds in CI */}
+      <section className="mt-6">
+        <div className="mb-2">
+          <p className="text-sm font-medium text-foreground">How this embeds in CI</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Run the benchmark as a step in your pipeline and fail the job on a divergence
+            regression. Models are validated first so a deprecated slug can&apos;t silently pass the
+            gate.
+          </p>
+        </div>
+        <CodeCard
+          label="CI workflow"
+          code={`# .github/workflows/model-upgrade.yml
 - run: npm run models:validate
 - run: npm run benchmark:run -- --config configs/alignment-gate.json
 - run: node scripts/check-divergence.js --max-charismatic-liar-rate 0.15
   # exits non-zero -> merge blocked`}
-      />
-    </ShowcaseShell>
+        />
+      </section>
+    </div>
   )
 }
 
-function Metric({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: 'good' | 'warn' | 'bad' }) {
-  const color = tone === 'good' ? 'text-accent-primary' : tone === 'warn' ? 'text-accent-4' : 'text-accent-3'
+/**
+ * Gate result tile. Severity is conveyed via status dot + numeric value + text
+ * label, never color alone (Req 9.4).
+ */
+function GateMetric({
+  label,
+  value,
+  status,
+  sub,
+  dotClass,
+  valueClass,
+}: {
+  label: string
+  value: string
+  status: string
+  sub: string
+  dotClass: string
+  valueClass: string
+}) {
   return (
-    <div className="rounded-card border border-border bg-surface-raised p-[var(--space-sm)]">
-      <p className="mb-1 text-caption text-text-muted">{label}</p>
-      <p className={`text-h3 font-bold ${color}`}>{value}</p>
-      <p className="mt-0.5 text-caption text-text-muted">{sub}</p>
+    <div className="rounded-lg border border-border bg-card p-4">
+      <p className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={cn('font-mono text-xl font-bold tabular-nums', valueClass)}>{value}</p>
+      <span className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className={cn('h-1.5 w-1.5 rounded-full', dotClass)} aria-hidden="true" />
+        <span className="font-medium capitalize text-foreground/80">{status}</span>
+        <span aria-hidden="true">·</span>
+        {sub}
+      </span>
     </div>
   )
 }

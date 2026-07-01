@@ -1,14 +1,36 @@
 'use client'
 
-import { BarChart3, Award, AlertTriangle } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { ShowcaseShell } from '@/components/showcase/ShowcaseShell'
-import { BackToHub } from '@/components/showcase/BackToHub'
-import { SectionHeading } from '@/components/showcase/SectionHeading'
-import { GlassPanel } from '@/components/showcase/GlassPanel'
-import { SampleDataLabel } from '@/components/showcase/SampleDataLabel'
-import { JudgeSignalLabel } from '@/components/showcase/JudgeSignalLabel'
-import { EmbedNote } from '@/components/showcase/EmbedNote'
+import {
+  Trophy,
+  TriangleAlert,
+  Layers,
+  Coins,
+} from 'lucide-react'
+import { useTopBar } from '@/components/layout/TopBarContext'
+import { Card, CardHeader } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Stat } from '@/components/app/Stat'
+import { CssBar, LegendDot, severity } from '@/components/app/CssBar'
+import { CodeCard } from '@/components/app/CodeCard'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+
+/**
+ * Canonical eval-report screen — the visual ground truth for the redesign.
+ *
+ * Ported from the throwaway reference screen (`app/reference/page.tsx`) onto the
+ * shared primitives built in waves 2–4. Presentation only: the metrics below are
+ * ILLUSTRATIVE SAMPLE DATA (a view-model), not wired to real debate/judge/API data.
+ *
+ * The nav/background/top bar are owned by AppShell; this page only renders its
+ * content and sets the top bar declaratively via `useTopBar`. Exactly one <h1>.
+ */
 
 interface Row {
   model: string
@@ -18,7 +40,7 @@ interface Row {
   charismaticLiar: number
 }
 
-const rows: Row[] = [
+const ROWS: Row[] = [
   { model: 'Claude Sonnet 4.5', debates: 48, winRate: 64, factuality: 91, charismaticLiar: 3 },
   { model: 'GPT-5.1', debates: 48, winRate: 61, factuality: 88, charismaticLiar: 5 },
   { model: 'Gemini 3.1 Pro', debates: 48, winRate: 58, factuality: 90, charismaticLiar: 4 },
@@ -26,146 +48,181 @@ const rows: Row[] = [
   { model: 'DeepSeek V3.1', debates: 48, winRate: 47, factuality: 85, charismaticLiar: 6 },
 ]
 
-// Severity sourced from accent tokens so the chart stays theme-aware and within
-// the Design_System palette (no raw hex). SVG fill accepts CSS custom properties.
-const barColor = (cl: number) =>
-  cl >= 10 ? 'var(--color-accent-3)' : cl >= 6 ? 'var(--color-accent-4)' : 'var(--color-accent-primary)'
-const severityClass = (cl: number) =>
-  cl >= 10 ? 'text-accent-3' : cl >= 6 ? 'text-accent-4' : 'text-accent-primary'
+const byWinRate = [...ROWS].sort((a, b) => b.winRate - a.winRate)
 
 export default function EvalReportDemo() {
-  const top = [...rows].sort((a, b) => b.winRate - a.winRate)[0]
-  const flagged = [...rows].sort((a, b) => b.charismaticLiar - a.charismaticLiar)[0]
-  const chartData = rows.map((r) => ({ name: r.model.replace(/ /g, '\n'), winRate: r.winRate, cl: r.charismaticLiar }))
+  useTopBar({
+    breadcrumb: [{ label: 'Benchmark runs' }, { label: 'alignment-topic-set-v1' }],
+    contextPill: '240 debates',
+    primaryAction: { label: 'New run', href: '/debate/new' },
+  })
+
+  const top = byWinRate[0]
+  const flagged = [...ROWS].sort((a, b) => b.charismaticLiar - a.charismaticLiar)[0]
+  const totalDebates = ROWS.reduce((n, r) => n + r.debates, 0)
+  const maxWin = Math.max(...ROWS.map((r) => r.winRate))
 
   return (
-    <ShowcaseShell
-      title="Benchmark run scorecard"
-      intro={
-        <>
-          A shareable comparison across one benchmark run: who wins, whose claims hold up, and who wins by being
-          persuasive rather than correct. Run name:{' '}
-          <span className="text-text">alignment-topic-set-v1 · 240 debates</span>.
-        </>
-      }
-    >
-      <BackToHub />
-
-      {/* These metrics are illustrative and derived from judge / fact-check signals,
-          so both honesty labels sit adjacent to the data (Req 5.4, 6.1). */}
-      <div className="flex flex-wrap items-center gap-[var(--space-sm)]">
-        <SampleDataLabel />
-        <JudgeSignalLabel />
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+      {/* Page heading + honesty labels */}
+      <div className="mb-6">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Badge tone="neutral">Sample / demo data</Badge>
+          <Badge tone="accent">Model-based signal · not ground truth</Badge>
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Benchmark run scorecard
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          A comparison across one benchmark run: who wins, whose claims hold up, and who wins by
+          being persuasive rather than correct.
+        </p>
       </div>
 
-      <section className="space-y-[var(--space-md)]">
-        <SectionHeading level={2}>Headline results</SectionHeading>
-        <div className="grid gap-[var(--space-md)] sm:grid-cols-2">
-          <GlassPanel className="rounded-card p-[var(--space-md)]">
-            <div className="mb-1 flex items-center gap-[var(--space-xs)]">
-              <Award className="h-4 w-4 text-accent-primary" aria-hidden="true" />
-              <span className="text-caption font-medium text-accent-primary">Top win rate</span>
+      {/* KPI stat row */}
+      <div className="mb-3 flex items-center gap-2">
+        <Badge tone="neutral">Sample / demo data</Badge>
+      </div>
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Stat
+          icon={Trophy}
+          iconClass="text-cyan-300"
+          label="Top win rate"
+          value={top.model}
+          sub={`${top.winRate}% wins · ${top.factuality}% factuality`}
+          highlight
+        />
+        <Stat
+          icon={TriangleAlert}
+          iconClass="text-rose-400"
+          label="Most charismatic-liar wins"
+          value={flagged.model}
+          sub={`${flagged.charismaticLiar} wins over weaker facts`}
+        />
+        <Stat
+          icon={Layers}
+          iconClass="text-slate-400"
+          label="Total debates"
+          value={String(totalDebates)}
+          sub={`${ROWS.length} models · 3 rounds`}
+        />
+        <Stat
+          icon={Coins}
+          iconClass="text-slate-400"
+          label="Avg cost / debate"
+          value="$0.042"
+          sub="est. from token usage"
+        />
+      </div>
+
+      {/* Two-column: win-rate bars + scorecard table */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Win-rate comparison bars */}
+        <section className="min-w-0 lg:col-span-2">
+          <Card>
+            <CardHeader title="Win rate by model" hint="bar color = charismatic-liar level" />
+            <div className="space-y-4 px-5 pb-5">
+              {byWinRate.map((r) => {
+                const s = severity(r.charismaticLiar)
+                return (
+                  <div key={r.model}>
+                    <div className="mb-1.5 flex items-center justify-between text-sm">
+                      <span className="text-foreground/80">{r.model}</span>
+                      <span className="font-mono font-medium tabular-nums text-foreground">
+                        {r.winRate}%
+                      </span>
+                    </div>
+                    <CssBar value={r.winRate} max={maxWin} barClass={s.bar} />
+                  </div>
+                )
+              })}
+              <div className="flex items-center gap-4 pt-1 text-[11px] text-muted-foreground">
+                <LegendDot className="bg-gradient-to-r from-cyan-500 to-violet-500" label="low" />
+                <LegendDot className="bg-amber-500" label="elevated" />
+                <LegendDot className="bg-rose-500" label="high" />
+              </div>
             </div>
-            <p className="text-h3 font-bold text-text">{top.model}</p>
-            <p className="text-caption text-text-muted">
-              {top.winRate}% wins · {top.factuality}% factuality
-            </p>
-          </GlassPanel>
-          <GlassPanel className="rounded-card p-[var(--space-md)]">
-            <div className="mb-1 flex items-center gap-[var(--space-xs)]">
-              <AlertTriangle className="h-4 w-4 text-accent-3" aria-hidden="true" />
-              <span className="text-caption font-medium text-accent-3">Most charismatic-liar wins</span>
+          </Card>
+        </section>
+
+        {/* Per-model scorecard table */}
+        <section className="min-w-0 lg:col-span-3">
+          <Card>
+            <div className="flex items-center justify-between px-5 pt-3.5">
+              <Badge tone="neutral">Sample / demo data</Badge>
             </div>
-            <p className="text-h3 font-bold text-text">{flagged.model}</p>
-            <p className="text-caption text-text-muted">
-              {flagged.charismaticLiar} wins where persuasion beat weaker facts · {flagged.factuality}% factuality
+            <CardHeader title="Per-model scorecard" hint="sorted by win rate" />
+            <Table>
+              <TableHeader>
+                <TableRow className="border-y border-border text-[11px] uppercase tracking-wider text-muted-foreground hover:bg-transparent">
+                  <TableHead className="px-5 py-2.5 text-left font-medium text-muted-foreground">
+                    Model
+                  </TableHead>
+                  <TableHead className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                    Debates
+                  </TableHead>
+                  <TableHead className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                    Win
+                  </TableHead>
+                  <TableHead className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                    Factuality
+                  </TableHead>
+                  <TableHead className="px-5 py-2.5 text-right font-medium text-muted-foreground">
+                    Char.-liar
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {byWinRate.map((r) => {
+                  const s = severity(r.charismaticLiar)
+                  return (
+                    <TableRow key={r.model} className="border-b border-border last:border-0">
+                      <TableCell className="px-5 py-3 font-medium text-foreground">
+                        {r.model}
+                      </TableCell>
+                      <TableCell className="px-3 py-3 text-right font-mono tabular-nums text-muted-foreground">
+                        {r.debates}
+                      </TableCell>
+                      <TableCell className="px-3 py-3 text-right font-mono tabular-nums text-foreground">
+                        {r.winRate}%
+                      </TableCell>
+                      <TableCell className="px-3 py-3 text-right font-mono tabular-nums text-muted-foreground">
+                        {r.factuality}%
+                      </TableCell>
+                      <TableCell className="px-5 py-3">
+                        <span className="flex items-center justify-end gap-1.5">
+                          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden="true" />
+                          <span className={`font-mono font-medium tabular-nums ${s.text}`}>
+                            {r.charismaticLiar}
+                          </span>
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+            <p className="border-t border-border px-5 py-3 text-xs leading-relaxed text-muted-foreground">
+              Win rate measures persuasion; factuality and charismatic-liar counts are derived from
+              fact-check verdicts under a fixed judge configuration. Judge output is a model-based
+              signal, not ground truth.
             </p>
-          </GlassPanel>
-        </div>
-      </section>
+          </Card>
+        </section>
+      </div>
 
-      <section className="space-y-[var(--space-md)]">
-        <div className="flex flex-wrap items-center gap-[var(--space-sm)]">
-          <BarChart3 className="h-5 w-5 text-accent-primary" aria-hidden="true" />
-          <SectionHeading level={2}>Win rate by model</SectionHeading>
-          <span className="ml-auto text-caption text-text-muted">bar colored by charismatic-liar count</span>
-        </div>
-        <GlassPanel className="rounded-card p-[var(--space-md)]">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 8 }}>
-                <XAxis dataKey="name" tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} interval={0} />
-                <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} domain={[0, 80]} unit="%" />
-                <Tooltip
-                  contentStyle={{
-                    background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-card)',
-                    color: 'var(--color-text)',
-                  }}
-                  cursor={{ fill: 'color-mix(in srgb, var(--color-text-muted) 12%, transparent)' }}
-                />
-                <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
-                  {chartData.map((d, i) => (
-                    <Cell key={i} fill={barColor(d.cl)} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassPanel>
-      </section>
-
-      <section className="space-y-[var(--space-md)]">
-        <div className="flex flex-wrap items-center gap-[var(--space-sm)]">
-          <SectionHeading level={2}>Per-model scorecard</SectionHeading>
-          <JudgeSignalLabel className="ml-auto" />
-        </div>
-        <GlassPanel className="overflow-hidden rounded-card">
-          {/* Contain wide content so the table never forces page-width overflow (Req 7.7). */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-body">
-              <thead>
-                <tr className="border-b border-border text-caption uppercase tracking-wide text-text-muted">
-                  <th className="px-[var(--space-md)] py-[var(--space-sm)] text-left font-medium">Model</th>
-                  <th className="px-[var(--space-md)] py-[var(--space-sm)] text-right font-medium">Debates</th>
-                  <th className="px-[var(--space-md)] py-[var(--space-sm)] text-right font-medium">Win rate</th>
-                  <th className="px-[var(--space-md)] py-[var(--space-sm)] text-right font-medium">Factuality</th>
-                  <th className="px-[var(--space-md)] py-[var(--space-sm)] text-right font-medium">Charismatic-liar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.model} className="border-b border-border last:border-0">
-                    <td className="px-[var(--space-md)] py-[var(--space-sm)] text-text">{r.model}</td>
-                    <td className="px-[var(--space-md)] py-[var(--space-sm)] text-right text-text-muted">{r.debates}</td>
-                    <td className="px-[var(--space-md)] py-[var(--space-sm)] text-right text-text-muted">{r.winRate}%</td>
-                    <td className="px-[var(--space-md)] py-[var(--space-sm)] text-right text-text-muted">{r.factuality}%</td>
-                    <td className={`px-[var(--space-md)] py-[var(--space-sm)] text-right font-medium ${severityClass(r.charismaticLiar)}`}>
-                      {r.charismaticLiar}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </GlassPanel>
-        <p className="text-caption text-text-muted">
-          Judge output is a model-based signal under a fixed configuration, not ground truth. Win rate measures
-          persuasion; factuality and charismatic-liar counts are derived from fact-check verdicts.
-        </p>
-      </section>
-
-      <EmbedNote
-        title="How this embeds as a report API"
-        description="Point the harness at any set of models via one config, then fetch the aggregated metrics as JSON or render them as a hosted report."
-        snippet={`POST /api/eval/run
-{ "models": ["anthropic/claude-sonnet-4.5","openai/gpt-5.1","x-ai/grok-4.3"],
+      {/* Code / API card */}
+      <section className="mt-6">
+        <CodeCard
+          label="eval API"
+          code={`POST /api/eval/run
+{ "models": ["anthropic/claude-sonnet-4.5", "openai/gpt-5.1", "x-ai/grok-4.3"],
   "topicSet": "alignment-topic-set-v1", "rounds": 3 }
 
 GET /api/eval/{runId}/metrics
--> per-model winRate, factuality, charismaticLiarWins, costPerDebate`}
-      />
-    </ShowcaseShell>
+→ per-model winRate, factuality, charismaticLiarWins, costPerDebate`}
+        />
+      </section>
+    </div>
   )
 }
